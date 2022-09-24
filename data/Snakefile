@@ -1,0 +1,104 @@
+from snakemake.remote.GS import RemoteProvider
+
+GS = RemoteProvider(stay_on_remote=True)
+
+syn_by_context = GS.remote(config["gcp_rootdir"] + "syn_by_context.tsv")
+intronic_by_context = GS.remote(config["gcp_rootdir"] + "intronic_by_context.tsv")
+
+
+rule all:
+    input:
+        intronic_by_context,
+        syn_by_context,
+
+
+# Counts of singletons in intronic variants grouped by
+# context with a unique mutability value
+rule intronic_by_context:
+    output:
+        intronic_by_context,
+    run:
+        import hail as hl
+        from misc import preprocessing
+
+        # QC
+        intron_vars = preprocessing(
+            config["exomes_ht_path"],
+            config["context_ht_path"],
+            {"female": 57787, "male": 67961},
+            "intron_variant",
+        )
+
+        # Group by context
+        intron_vars_grouped = intron_vars.group_by(
+            "context",
+            "ref",
+            "alt",
+            "variant_type",
+            "methylation_level",
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(intron_vars.freq[0].AC == 1),
+        )
+
+        # Annotate with mutation rates (mutability)
+        mutation_ht = hl.read_table(config["mutation_rate_ht_path"])
+        intron_vars_grouped = intron_vars_grouped.annotate(
+            mu=mutation_ht[
+                hl.struct(
+                    context=intron_vars_grouped.context,
+                    ref=intron_vars_grouped.ref,
+                    alt=intron_vars_grouped.alt,
+                    methylation_level=intron_vars_grouped.methylation_level,
+                )
+            ].mu_snp
+        )
+
+
+        intron_vars_grouped.export(output[0])
+
+
+# Counts of singletons in synonymous variants grouped by
+# context with a unique mutability value
+rule syn_by_context:
+    output:
+        syn_by_context,
+    run:
+        import hail as hl
+        from misc import preprocessing
+
+        # QC
+        syn_vars = preprocessing(
+            config["exomes_ht_path"],
+            config["context_ht_path"],
+            {"female": 57787, "male": 67961},
+            "synonymous_variant",
+        )
+
+        # Group by context
+        syn_vars_grouped = syn_vars.group_by(
+            "context",
+            "ref",
+            "alt",
+            "variant_type",
+            "methylation_level",
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(syn_vars.freq[0].AC == 1),
+        )
+
+        # Annotate with mutation rates (mutability)
+        mutation_ht = hl.read_table(config["mutation_rate_ht_path"])
+        syn_vars_grouped = syn_vars_grouped.annotate(
+            mu=mutation_ht[
+                hl.struct(
+                    context=syn_vars_grouped.context,
+                    ref=syn_vars_grouped.ref,
+                    alt=syn_vars_grouped.alt,
+                    methylation_level=syn_vars_grouped.methylation_level,
+                )
+            ].mu_snp
+        )
+
+
+        syn_vars_grouped.export(output[0])
