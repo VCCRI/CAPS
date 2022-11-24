@@ -1,3 +1,4 @@
 *~
 analysis/*
 .vscode/*
+*.Rdata
