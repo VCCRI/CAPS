@@ -10,3 +10,11 @@
 2. Connect to the cluster: `gcloud beta compute ssh <user_name>@<cluster_name>-m --zone "<zone>" --project "<project_name>"`
 3. `git clone` this repository and navigate to `data/`
 4. Run the pipeline: `snakemake --cores all --configfile config.yaml --config gcp_rootdir="<bucket_name>/some_directory/" gcp_username="<user_name>"`
+
+## The "Analysis" pipeline
+
+`analysis/` contains scripts that calculate and visualise CAPS scores using data from files created in `data/`.
+
+### How to run
+
+Run with `snakemake --cores all --config gcp_rootdir="<bucket_name>/some_directory/" gcp_username="<user_name>" `.

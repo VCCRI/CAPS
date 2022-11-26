@@ -1,2 +1,6 @@
 *~
-analysis/*
+analysis/testing/
+data/testing/
+analysis/.snakemake/
+data/.snakemake/
+*.pdf
