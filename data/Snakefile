@@ -4,12 +4,14 @@ GS = RemoteProvider(stay_on_remote=True)
 
 syn_by_context = GS.remote(config["gcp_rootdir"] + "syn_by_context.tsv")
 intronic_by_context = GS.remote(config["gcp_rootdir"] + "intronic_by_context.tsv")
+all_by_csq = GS.remote(config["gcp_rootdir"] + "by_csq.tsv")
 
 
 rule all:
     input:
         intronic_by_context,
         syn_by_context,
+        all_by_csq,
 
 
 # Counts of singletons in intronic variants grouped by
@@ -19,13 +21,13 @@ rule intronic_by_context:
         intronic_by_context,
     run:
         import hail as hl
-        from misc import preprocessing
+        from preprocessing import preprocessing
 
         # QC
         intron_vars = preprocessing(
             config["exomes_ht_path"],
             config["context_ht_path"],
-            {"female": 57787, "male": 67961},
+            {"female": config["female"], "male": config["male"]},
             "intron_variant",
         )
 
@@ -65,13 +67,13 @@ rule syn_by_context:
         syn_by_context,
     run:
         import hail as hl
-        from misc import preprocessing
+        from preprocessing import preprocessing
 
         # QC
         syn_vars = preprocessing(
             config["exomes_ht_path"],
             config["context_ht_path"],
-            {"female": 57787, "male": 67961},
+            {"female": config["female"], "male": config["male"]},
             "synonymous_variant",
         )
 
@@ -102,3 +104,56 @@ rule syn_by_context:
 
 
         syn_vars_grouped.export(output[0])
+
+
+# Counts of singletons in all variants grouped by
+# variant class and context
+rule all_by_csq:
+    output:
+        all_by_csq,
+    run:
+        import hail as hl
+        from misc import *
+
+        exomes = hl.read_table(config["exomes_ht_path"])
+
+        # Allele number (AN) adjustment.
+        exomes = exomes.filter(
+            get_an_adj_criteria(
+                exomes, {"female": config["female"], "male": config["male"]}
+            )
+        )
+
+        exomes = exomes.filter((exomes.freq[0].AF > 0) & (exomes.filters.length() == 0))
+
+        context = hl.read_table(config["context_ht_path"])
+        context = context[exomes.key]
+
+        exomes = prepare_ht(
+            exomes.annotate(context=context.context, methylation=context.methylation),
+            trimer=True,
+            annotate_coverage=False,
+        )
+
+        mutation_rates = hl.read_table(config["mutation_rate_ht_path"])
+        exomes = exomes.annotate(
+            mu=mutation_rates[
+                hl.struct(
+                    context=exomes.context,
+                    ref=exomes.ref,
+                    alt=exomes.alt,
+                    methylation_level=exomes.methylation_level,
+                )
+            ].mu_snp
+        )
+
+        exomes = exomes.annotate(worst_csq=exomes.vep.most_severe_consequence)
+
+        exomes.group_by(
+            "context", "ref", "alt", "methylation_level", "mu", "worst_csq"
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(exomes.freq[0].AC == 1),
+        ).export(
+            output[0]
+        )
