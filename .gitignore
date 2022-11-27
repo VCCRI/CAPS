@@ -4,3 +4,5 @@ data/testing/
 analysis/.snakemake/
 data/.snakemake/
 *.pdf
+.vscode/*
+*.Rdata
