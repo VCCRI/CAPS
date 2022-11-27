@@ -4,8 +4,16 @@ GS = RemoteProvider()
 
 calculate_caps = "calculate_caps.R"
 calculate_maps = "calculate_maps.R"
+compare_scores = "compare_scores.R"
 viz_scores = "viz_scores.R"
+viz_scores_multi = "viz_scores_multi.R"
 annotate_with_mutability_bands = "annotate_with_mutability_bands.R"
+
+colors2 = ["#999899", "#B11116"]
+colors3 = ["#F04B5D", "#B11116", "#999899"]
+reds = ["#B11116", "#EF4640", "#F04B5D"]
+greys = ["#56565A", "#999899", "#BDBBBB", "#D8D1CA", "#CDC3BB"]
+
 
 ###############################################################################
 #                                 Input files                                 #
@@ -17,11 +25,14 @@ syn_by_context = GS.remote(config["gcp_rootdir"] + "syn_by_context.tsv")
 # Intronic variants grouped by context/mutability
 intronic_by_context = GS.remote(config["gcp_rootdir"] + "intronic_by_context.tsv")
 # All variants grouped by their most severe consequence
-by_csq = GS.remote(config["gcp_rootdir"] + "by_csq.tsv")
+by_csq_unprocessed = GS.remote(config["gcp_rootdir"] + "by_csq.tsv")
+by_csq = "by_csq.tsv"
 
 # Model #######################################################################
 # Synonymous variants with 4 missing contexts added
 syn_by_context_p4 = "../model/phat.tsv"
+syn_by_context_pdd = "../model/phat_sim.tsv"
+
 
 ###############################################################################
 #                               Auxiliary files                               #
@@ -29,46 +40,235 @@ syn_by_context_p4 = "../model/phat.tsv"
 
 # CAPS scores for all major functional classes of SNVs
 caps_by_csq_scores = "all_csq_caps.tsv"
+# CAPS-PDD scores for all major functional classes of SNVs
+caps_pdd_by_csq_scores = "all_csq_caps_pdd.tsv"
 # All variants annotated with mutability bands
 all_w_mutability_bands = "all_w_mutability_bands.tsv"
 # All variant by mutability band (MAPS score)
 all_vars_maps_by_mutability_band_scores = "all_mutband_maps.tsv"
-# All variant by mutability band (square-root transformed MAPS)
+# All variant by mutability band (MAPS score, square-root transformed mutability model)
 all_vars_sqrt_by_mutability_band_scores = "all_mutband_sqrt.tsv"
 # All variant by mutability band (CAPS score)
 all_vars_caps_by_mutability_band_scores = "all_mutband_caps.tsv"
 # All variants by most severe consequences (MAPS score)
-maps_all_by_worst_csq_scores = "all_csq_maps.tsv"
+maps_by_csq_scores = "all_csq_maps.tsv"
 
 
 ###############################################################################
 #                                 Output files                                #
 ###############################################################################
 
+# CAPS and MAPS scores for all major functional classes of SNVs
+scores2_by_csq_plot = "all_csq_scores2.pdf"
+scores3_by_csq_plot = "all_csq_scores3.pdf"
 # Plot of CAPS scores for all major functional classes of SNVs
 caps_by_csq_plot = "all_csq_caps.pdf"
+# CAPS-PDD scores for all major functional classes of SNVs
+caps_pdd_by_csq_plot = "all_csq_caps_pdd.pdf"
 # All variant by mutability band (MAPS score)
 all_vars_maps_by_mutability_band_plot = "all_mutband_maps.pdf"
-# All variant by mutability band (square-root transformed MAPS)
+# All variant by mutability band (MAPS score, square-root transformed mutability model)
 all_vars_sqrt_by_mutability_band_plot = "all_mutband_sqrt.pdf"
 # All variant by mutability band (CAPS score)
 all_vars_caps_by_mutability_band_plot = "all_mutband_caps.pdf"
+# CAPS and MAPS scores by mutability band
+all_vars_scores2_by_mutability_band_plot = "all_mutband_scores2.pdf"
 # All variants by most severe consequences (MAPS score)
-maps_all_by_worst_csq_plot = "all_csq_maps.pdf"
+maps_by_csq_plot = "all_csq_maps.pdf"
+# Table summarising the difference in scores of the 3 models
+scores3_by_csq_scores_comparison = "scores3_by_csq_scores_comparison.tex"
 
 
 rule all:
     input:
-        all_vars_maps_by_mutability_band_plot,
-        all_vars_sqrt_by_mutability_band_plot,
-        all_vars_caps_by_mutability_band_plot,
-        maps_all_by_worst_csq_plot,
-        caps_by_csq_plot,
+        # Plots ###############################################################
+        # Mutability bias
+        all_vars_scores2_by_mutability_band_plot,
+        # By variant class
+        scores2_by_csq_plot,
+        scores3_by_csq_plot,
+        # maps_by_csq_plot,
+        # caps_by_csq_plot,
+        # caps_pdd_by_csq_plot,
+        # Scores ##############################################################
+        scores3_by_csq_scores_comparison,
+        # caps_pdd_by_csq_scores,
+        # caps_by_csq_scores,
+        # maps_by_csq_scores,
 
 
 ###############################################################################
 
-rule maps_all_by_worst_csq:
+
+rule process_by_csq:
+    input:
+        by_csq_unprocessed=by_csq_unprocessed,
+    output:
+        by_csq_processed=by_csq,
+    script:
+        "process_by_csq.R"
+
+
+rule all_vars_scores2_by_mutability_band_plot:
+    input:
+        scores=[
+            all_vars_caps_by_mutability_band_scores,
+            all_vars_maps_by_mutability_band_scores,
+        ],
+    params:
+        xlab_labels=["Highest", "Higher", "Lower", "Lowest"],
+        new_xlab_labels=["Highest", "High", "Low", "Lowest"],
+        model_labels=["maps", "caps"],
+        new_model_labels=["MAPS", "CAPS"],
+        colors=colors2,
+        legend_title="",
+        xlab="Mutability band",
+        ylab="Selection score",
+        xlab_angle=0,
+        xlab_hjust=0.5,
+        xlab_vjust=0,
+    output:
+        plot=all_vars_scores2_by_mutability_band_plot,
+    script:
+        viz_scores_multi
+
+
+rule scores2_by_csq_plot:
+    input:
+        scores=[caps_by_csq_scores, maps_by_csq_scores],
+    params:
+        xlab_labels_set=[
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        xlab_labels=[
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        new_xlab_labels=[
+            "Intron",
+            "5'UTR",
+            "3'UTR",
+            "Synonymous",
+            "Missense",
+            "Essential splice",
+            "Nonsense",
+        ],
+        model_labels=["maps", "caps"],
+        new_model_labels=["MAPS", "CAPS"],
+        colors=colors2,
+        xlab="",
+        ylab="Selection score",
+        xlab_angle=45,
+        xlab_hjust=1,
+        xlab_vjust=1,
+        legend_title="",
+    output:
+        plot=scores2_by_csq_plot,
+    script:
+        viz_scores_multi
+
+
+rule scores3_by_csq_plot:
+    input:
+        scores=[caps_pdd_by_csq_scores, caps_by_csq_scores, maps_by_csq_scores],
+    params:
+        xlab_labels_set=[
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        xlab_labels=[
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        new_xlab_labels=[
+            "Intron",
+            "5'UTR",
+            "3'UTR",
+            "Synonymous",
+            "Missense",
+            "Essential splice",
+            "Nonsense",
+        ],
+        model_labels=["caps_pdd", "caps", "maps"],
+        new_model_labels=["CAPS-PDD", "CAPS", "MAPS"],
+        dodge_width=0.95,
+        colors=colors3,
+        xlab="",
+        ylab="Selection score",
+        xlab_angle=45,
+        xlab_hjust=1,
+        xlab_vjust=1,
+        legend_title="",
+    output:
+        plot=scores3_by_csq_plot,
+    script:
+        viz_scores_multi
+
+
+rule scores3_by_csq_scores_comparison:
+    input:
+        scores=[caps_pdd_by_csq_scores, caps_by_csq_scores, maps_by_csq_scores],
+    params:
+        labels_set=[
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        labels=[
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        new_labels=[
+            "Intron",
+            "5'UTR",
+            "3'UTR",
+            "Synonymous",
+            "Missense",
+            "Essential splice",
+            "Nonsense",
+        ],
+        model_labels=["maps", "caps", "caps_pdd"],
+        new_model_labels=["MAPS", "CAPS", "CAPS-PDD"],
+        caption="Increase in the size of confidence intervals in CAPS and CAPS-PDD compared to MAPS by variant class.",
+        label="table:CIs_by_csq",
+        variable="worst_csq",
+    output:
+        table=scores3_by_csq_scores_comparison,
+    script:
+        compare_scores
+
+
+rule maps_by_csq_scores:
     input:
         variants=by_csq,
         calibrate_on=syn_by_context,
@@ -76,16 +276,16 @@ rule maps_all_by_worst_csq:
         extra="worst_csq",
         transformation="+",
     output:
-        scores=maps_all_by_worst_csq_scores,
+        scores=maps_by_csq_scores,
     script:
         calculate_maps
 
 
-rule maps_all_by_worst_csq_plot:
+rule maps_by_csq_plot:
     input:
-        scores=maps_all_by_worst_csq_scores,
+        scores=maps_by_csq_scores,
     output:
-        plot=maps_all_by_worst_csq_plot,
+        plot=maps_by_csq_plot,
     params:
         ylim_max=0.16,
         ylim_min=-0.04,
@@ -96,6 +296,7 @@ rule maps_all_by_worst_csq_plot:
             "3_prime_UTR_variant",
             "synonymous_variant",
             "missense_variant",
+            "essential_splice",
             "stop_gained",
         ],
         xlab_labels=[
@@ -104,6 +305,7 @@ rule maps_all_by_worst_csq_plot:
             "3_prime_UTR_variant",
             "synonymous_variant",
             "missense_variant",
+            "essential_splice",
             "stop_gained",
         ],
         new_xlab_labels=[
@@ -112,6 +314,7 @@ rule maps_all_by_worst_csq_plot:
             "3'UTR",
             "Synonymous",
             "Missense",
+            "Essential splice",
             "Nonsense",
         ],
         xlab_vjust=1,
@@ -257,6 +460,19 @@ rule caps_by_csq_scores:
         calculate_caps
 
 
+rule caps_pdd_by_csq_scores:
+    input:
+        variants=by_csq,
+        exp_variants=syn_by_context_pdd,
+    params:
+        phat_method="PDD",
+        variable="worst_csq",
+    output:
+        scores=caps_pdd_by_csq_scores,
+    script:
+        calculate_caps
+
+
 rule caps_by_csq_plot:
     input:
         scores=caps_by_csq_scores,
@@ -275,6 +491,7 @@ rule caps_by_csq_plot:
             "3_prime_UTR_variant",
             "synonymous_variant",
             "missense_variant",
+            "essential_splice",
             "stop_gained",
         ],
         xlab_labels=[
@@ -283,6 +500,7 @@ rule caps_by_csq_plot:
             "3_prime_UTR_variant",
             "synonymous_variant",
             "missense_variant",
+            "essential_splice",
             "stop_gained",
         ],
         new_xlab_labels=[
@@ -291,10 +509,57 @@ rule caps_by_csq_plot:
             "3'UTR",
             "Synonymous",
             "Missense",
+            "Essential splice",
             "Nonsense",
         ],
         score_name="caps",
         lconf="caps_lconf",
         uconf="caps_uconf",
+    script:
+        viz_scores
+
+
+rule caps_pdd_by_csq_plot:
+    input:
+        scores=caps_pdd_by_csq_scores,
+    output:
+        plot=caps_pdd_by_csq_plot,
+    params:
+        ylim_max=0.16,
+        ylim_min=-0.04,
+        xlab_angle=45,
+        xlab_vjust=1,
+        xlab_hjust=1,
+        reorder_xlab_by_score=False,
+        xlab_labels_set=[
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        xlab_labels=[
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        new_xlab_labels=[
+            "Intron",
+            "5'UTR",
+            "3'UTR",
+            "Synonymous",
+            "Missense",
+            "Essential splice",
+            "Nonsense",
+        ],
+        score_name="caps_pdd",
+        lconf="caps_pdd_lconf",
+        uconf="caps_pdd_uconf",
     script:
         viz_scores

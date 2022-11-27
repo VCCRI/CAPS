@@ -1,5 +1,5 @@
 # Generates a figure showing the distribution of "adjusted proportion
-# of singletons" scores
+# of singletons" scores by variable
 
 library(dplyr)
 library(ggplot2)
@@ -31,9 +31,10 @@ ggplot(scores) +
       aes(x = factor(variable_value), y = !!sym(snakemake@params[["score_name"]]))
     }
   } +
-  ylab(ifelse(snakemake@params[["score_name"]] %in% c("maps", "caps"), case_when(
+  ylab(ifelse(snakemake@params[["score_name"]] %in% c("maps", "caps", "caps_pdd"), case_when(
     (snakemake@params[["score_name"]] == "maps") ~ "MAPS",
-    (snakemake@params[["score_name"]] == "caps") ~ "CAPS"
+    (snakemake@params[["score_name"]] == "caps") ~ "CAPS",
+    (snakemake@params[["score_name"]] == "caps_pdd") ~ "CAPS-PDD"
   ), stop("Score name error"))) +
   xlab(snakemake@params[["xlab"]]) +
   geom_pointrange(
@@ -41,9 +42,8 @@ ggplot(scores) +
       ymin = !!sym(snakemake@params[["lconf"]]),
       ymax = !!sym(snakemake@params[["uconf"]])
     ),
-    size = 2, linewidth = 1.8
+    size = 1.3, linewidth = 1.8
   ) +
-  geom_point() +
   {
     if (!is.null(snakemake@params[["ylim_min"]]) &
       !is.null(snakemake@params[["ylim_max"]])) {
@@ -56,7 +56,7 @@ ggplot(scores) +
   theme_classic() +
   theme(
     legend.direction = "horizontal",
-    text = element_text(size = 30),
+    text = element_text(size = 24),
     axis.text.x = element_text(
       vjust = snakemake@params[["xlab_vjust"]],
       hjust = snakemake@params[["xlab_hjust"]],
