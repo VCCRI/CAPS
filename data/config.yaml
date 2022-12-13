@@ -3,6 +3,11 @@ exomes_ht_path: "gs://gcp-public-data--gnomad/release/2.1.1/ht/exomes/gnomad.exo
 male: 67961
 female: 57787
 
+# All variants (WGS)
+genomes_ht_path: "gs://gcp-public-data--gnomad/release/2.1.1/ht/genomes/gnomad.genomes.r2.1.1.sites.ht/"
+male_genomes: 8741
+female_genomes: 6967
+
 # Mutability table. Contains 104 entries: 32 context sequences
 # (4^3 divided by 2 because of complementarity), times
 # 3 possible mutations of the middle nucleotide at methylation level 0,
@@ -13,3 +18,6 @@ mutation_rates_ht_path: "gs://gcp-public-data--gnomad/papers/2019-flagship-lof/v
 
 # Methylation and trinucleotide context data for all possible loci
 context_ht_path: "gs://gcp-public-data--gnomad/papers/2019-flagship-lof/v1.0/context/Homo_sapiens_assembly19.fasta.snps_only.vep_20181129.ht"
+
+# LoF metrics (including LOEUF) by gene
+lof_metrics_by_gene: "https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/constraint/gnomad.v2.1.1.lof_metrics.by_gene.txt.bgz"

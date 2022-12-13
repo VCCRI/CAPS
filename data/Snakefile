@@ -2,16 +2,54 @@ from snakemake.remote.GS import RemoteProvider
 
 GS = RemoteProvider(stay_on_remote=True)
 
+###############################################################################
+#                                  Main files                                 #
+###############################################################################
+
+# Files for CAPS ##############################################################
 syn_by_context = GS.remote(config["gcp_rootdir"] + "syn_by_context.tsv")
 intronic_by_context = GS.remote(config["gcp_rootdir"] + "intronic_by_context.tsv")
 all_by_csq = GS.remote(config["gcp_rootdir"] + "by_csq.tsv")
+syn_by_context_genomes = GS.remote(config["gcp_rootdir"] + "syn_by_context_genomes.tsv")
+intronic_by_context_genomes = GS.remote(
+    config["gcp_rootdir"] + "intronic_by_context_genomes.tsv"
+)
+all_by_csq_genomes = GS.remote(config["gcp_rootdir"] + "by_csq_genomes.tsv")
+
+# Files for analysis ##########################################################
+# All QC-compliant variants, by LOEUF constraint level
+all_constrained = GS.remote(config["gcp_rootdir"] + "all_constrained.tsv")
+# All QC-compliant synonymous variants, by LOEUF constraint level
+syn_constrained = GS.remote(config["gcp_rootdir"] + "syn_constrained.tsv")
+# All QC-compliant variants, by CADD group
+all_cadd = GS.remote(config["gcp_rootdir"] + "all_cadd.tsv")
+# All QC-compliant variants, by DANN group
+all_dann = GS.remote(config["gcp_rootdir"] + "all_dann.tsv")
+
+###############################################################################
+#                               Auxiliary files                               #
+###############################################################################
+
+# LoF metrics (including LOEUF) by gene
+lof_metrics_by_gene_file = GS.remote(config["gcp_rootdir"] + "lof_metrics_by_gene.txt")
+
+###############################################################################
 
 
 rule all:
     input:
-        intronic_by_context,
-        syn_by_context,
-        all_by_csq,
+        # Genomes #############################################################
+        intronic_by_context_genomes,
+        syn_by_context_genomes,
+        all_by_csq_genomes,
+        # Exomes ##############################################################
+        # intronic_by_context,
+        # syn_by_context,
+        # all_by_csq,
+        # all_cadd,
+        # all_dann,
+        # all_constrained,
+        # syn_constrained,
 
 
 # Counts of singletons in intronic variants grouped by
@@ -23,7 +61,6 @@ rule intronic_by_context:
         import hail as hl
         from preprocessing import preprocessing
 
-        # QC
         intron_vars = preprocessing(
             config["exomes_ht_path"],
             config["context_ht_path"],
@@ -44,7 +81,52 @@ rule intronic_by_context:
         )
 
         # Annotate with mutation rates (mutability)
-        mutation_ht = hl.read_table(config["mutation_rate_ht_path"])
+        mutation_ht = hl.read_table(config["mutation_rates_ht_path"])
+        intron_vars_grouped = intron_vars_grouped.annotate(
+            mu=mutation_ht[
+                hl.struct(
+                    context=intron_vars_grouped.context,
+                    ref=intron_vars_grouped.ref,
+                    alt=intron_vars_grouped.alt,
+                    methylation_level=intron_vars_grouped.methylation_level,
+                )
+            ].mu_snp
+        )
+
+
+        intron_vars_grouped.export(output[0])
+
+
+# Counts of singletons in intronic variants grouped by
+# context with a unique mutability value (genomes)
+rule intronic_by_context_genomes:
+    output:
+        intronic_by_context_genomes,
+    run:
+        import hail as hl
+        from preprocessing import preprocessing
+
+        intron_vars = preprocessing(
+            config["genomes_ht_path"],
+            config["context_ht_path"],
+            {"female": config["female_genomes"], "male": config["male_genomes"]},
+            "intron_variant",
+        )
+
+        # Group by context
+        intron_vars_grouped = intron_vars.group_by(
+            "context",
+            "ref",
+            "alt",
+            "variant_type",
+            "methylation_level",
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(intron_vars.freq[0].AC == 1),
+        )
+
+        # Annotate with mutation rates (mutability)
+        mutation_ht = hl.read_table(config["mutation_rates_ht_path"])
         intron_vars_grouped = intron_vars_grouped.annotate(
             mu=mutation_ht[
                 hl.struct(
@@ -69,7 +151,6 @@ rule syn_by_context:
         import hail as hl
         from preprocessing import preprocessing
 
-        # QC
         syn_vars = preprocessing(
             config["exomes_ht_path"],
             config["context_ht_path"],
@@ -90,7 +171,52 @@ rule syn_by_context:
         )
 
         # Annotate with mutation rates (mutability)
-        mutation_ht = hl.read_table(config["mutation_rate_ht_path"])
+        mutation_ht = hl.read_table(config["mutation_rates_ht_path"])
+        syn_vars_grouped = syn_vars_grouped.annotate(
+            mu=mutation_ht[
+                hl.struct(
+                    context=syn_vars_grouped.context,
+                    ref=syn_vars_grouped.ref,
+                    alt=syn_vars_grouped.alt,
+                    methylation_level=syn_vars_grouped.methylation_level,
+                )
+            ].mu_snp
+        )
+
+
+        syn_vars_grouped.export(output[0])
+
+
+# Counts of singletons in synonymous variants grouped by
+# context with a unique mutability value (genomes)
+rule syn_by_context_genomes:
+    output:
+        syn_by_context_genomes,
+    run:
+        import hail as hl
+        from preprocessing import preprocessing
+
+        syn_vars = preprocessing(
+            config["genomes_ht_path"],
+            config["context_ht_path"],
+            {"female": config["female_genomes"], "male": config["male_genomes"]},
+            "synonymous_variant",
+        )
+
+        # Group by context
+        syn_vars_grouped = syn_vars.group_by(
+            "context",
+            "ref",
+            "alt",
+            "variant_type",
+            "methylation_level",
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(syn_vars.freq[0].AC == 1),
+        )
+
+        # Annotate with mutation rates (mutability)
+        mutation_ht = hl.read_table(config["mutation_rates_ht_path"])
         syn_vars_grouped = syn_vars_grouped.annotate(
             mu=mutation_ht[
                 hl.struct(
@@ -113,7 +239,7 @@ rule all_by_csq:
         all_by_csq,
     run:
         import hail as hl
-        from misc import *
+        from misc import get_an_adj_criteria, prepare_ht
 
         exomes = hl.read_table(config["exomes_ht_path"])
 
@@ -135,7 +261,7 @@ rule all_by_csq:
             annotate_coverage=False,
         )
 
-        mutation_rates = hl.read_table(config["mutation_rate_ht_path"])
+        mutation_rates = hl.read_table(config["mutation_rates_ht_path"])
         exomes = exomes.annotate(
             mu=mutation_rates[
                 hl.struct(
@@ -151,6 +277,417 @@ rule all_by_csq:
 
         exomes.group_by(
             "context", "ref", "alt", "methylation_level", "mu", "worst_csq"
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(exomes.freq[0].AC == 1),
+        ).export(
+            output[0]
+        )
+
+
+# Counts of singletons in all variants grouped by
+# variant class and context (genomes)
+rule all_by_csq_genomes:
+    output:
+        all_by_csq_genomes,
+    run:
+        import hail as hl
+        from misc import get_an_adj_criteria, prepare_ht
+
+        exomes = hl.read_table(config["genomes_ht_path"])
+
+        # Allele number (AN) adjustment.
+        exomes = exomes.filter(
+            get_an_adj_criteria(
+                exomes,
+                {"female": config["female_genomes"], "male": config["male_genomes"]},
+            )
+        )
+
+        exomes = exomes.filter((exomes.freq[0].AF > 0) & (exomes.filters.length() == 0))
+
+        context = hl.read_table(config["context_ht_path"])
+        context = context[exomes.key]
+
+        exomes = prepare_ht(
+            exomes.annotate(context=context.context, methylation=context.methylation),
+            trimer=True,
+            annotate_coverage=False,
+        )
+
+        mutation_rates = hl.read_table(config["mutation_rates_ht_path"])
+        exomes = exomes.annotate(
+            mu=mutation_rates[
+                hl.struct(
+                    context=exomes.context,
+                    ref=exomes.ref,
+                    alt=exomes.alt,
+                    methylation_level=exomes.methylation_level,
+                )
+            ].mu_snp
+        )
+
+        exomes = exomes.annotate(worst_csq=exomes.vep.most_severe_consequence)
+
+        exomes.group_by(
+            "context", "ref", "alt", "methylation_level", "mu", "worst_csq"
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(exomes.freq[0].AC == 1),
+        ).export(
+            output[0]
+        )
+
+
+# Constrained genes ###########################################################
+
+
+# TODO: fix
+rule download_LOEUF:
+    output:
+        lof_metrics_by_gene_file,
+    shell:
+        """
+        wget -O lof_metrics_by_gene.txt.bgz {config[lof_metrics_by_gene]}
+        gunzip -c lof_metrics_by_gene.txt.bgz > {output[0]}
+        """
+
+
+rule annotate_all_constrained:
+    input:
+        lof_metrics_by_gene_file,
+    output:
+        all_constrained,
+    run:
+        import hail as hl
+        from misc import get_an_adj_criteria, prepare_ht
+
+        exomes = hl.read_table(config["exomes_ht_path"])
+
+        # Allele number (AN) adjustment.
+        exomes = exomes.filter(
+            get_an_adj_criteria(
+                exomes, {"female": config["female"], "male": config["male"]}
+            )
+        )
+
+        exomes = exomes.filter((exomes.freq[0].AF > 0) & (exomes.filters.length() == 0))
+
+        context = hl.read_table(config["context_ht_path"])
+        context = context[exomes.key]
+
+        exomes = prepare_ht(
+            exomes.annotate(context=context.context, methylation=context.methylation),
+            trimer=True,
+            annotate_coverage=False,
+        )
+
+        mutation_rates = hl.read_table(config["mutation_rates_ht_path"])
+        exomes = exomes.annotate(
+            mu=mutation_rates[
+                hl.struct(
+                    context=exomes.context,
+                    ref=exomes.ref,
+                    alt=exomes.alt,
+                    methylation_level=exomes.methylation_level,
+                )
+            ].mu_snp
+        )
+
+        # TODO: check
+        exomes = exomes.annotate(
+            transcript_consequences=exomes.vep.transcript_consequences.find(
+                lambda x: (x.biotype == "protein_coding")
+            )
+        )
+
+        all_genes = hl.import_table(input[0])
+
+        genes10 = all_genes.filter((all_genes.oe_lof_upper_bin == "0"))
+        genes10 = hl.set(genes10.gene.collect())
+
+        genes20 = all_genes.filter((all_genes.oe_lof_upper_bin == "1"))
+        genes20 = hl.set(genes20.gene.collect())
+
+        genes30 = all_genes.filter((all_genes.oe_lof_upper_bin == "2"))
+        genes30 = hl.set(genes30.gene.collect())
+
+        genes40 = all_genes.filter((all_genes.oe_lof_upper_bin == "3"))
+        genes40 = hl.set(genes40.gene.collect())
+
+        genes50 = all_genes.filter((all_genes.oe_lof_upper_bin == "4"))
+        genes50 = hl.set(genes50.gene.collect())
+
+        genes60 = all_genes.filter((all_genes.oe_lof_upper_bin == "5"))
+        genes60 = hl.set(genes60.gene.collect())
+
+        genes70 = all_genes.filter((all_genes.oe_lof_upper_bin == "6"))
+        genes70 = hl.set(genes70.gene.collect())
+
+        genes80 = all_genes.filter((all_genes.oe_lof_upper_bin == "7"))
+        genes80 = hl.set(genes80.gene.collect())
+
+        genes90 = all_genes.filter((all_genes.oe_lof_upper_bin == "8"))
+        genes90 = hl.set(genes90.gene.collect())
+
+        genes100 = all_genes.filter((all_genes.oe_lof_upper_bin == "9"))
+        genes100 = hl.set(genes100.gene.collect())
+
+        exomes = exomes.annotate(
+            loeuf=hl.case()
+            .when(genes10.contains(exomes.transcript_consequences.gene_symbol), 1)
+            .when(genes20.contains(exomes.transcript_consequences.gene_symbol), 2)
+            .when(genes30.contains(exomes.transcript_consequences.gene_symbol), 3)
+            .when(genes40.contains(exomes.transcript_consequences.gene_symbol), 4)
+            .when(genes50.contains(exomes.transcript_consequences.gene_symbol), 5)
+            .when(genes60.contains(exomes.transcript_consequences.gene_symbol), 6)
+            .when(genes70.contains(exomes.transcript_consequences.gene_symbol), 7)
+            .when(genes80.contains(exomes.transcript_consequences.gene_symbol), 8)
+            .when(genes90.contains(exomes.transcript_consequences.gene_symbol), 9)
+            .when(genes100.contains(exomes.transcript_consequences.gene_symbol), 10)
+            .or_missing()
+        )
+
+        exomes.group_by(
+            "context", "ref", "alt", "methylation_level", "mu", "loeuf"
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(exomes.freq[0].AC == 1),
+        ).export(
+            output[0]
+        )
+
+
+rule annotate_syn_constrained:
+    input:
+        lof_metrics_by_gene_file,
+    output:
+        syn_constrained,
+    run:
+        import hail as hl
+        from preprocessing import preprocessing
+
+        syn_vars = preprocessing(
+            config["exomes_ht_path"],
+            config["context_ht_path"],
+            {"female": config["female"], "male": config["male"]},
+            "synonymous_variant",
+        )
+
+        # Annotate with mutation rates (mutability)
+        mutation_ht = hl.read_table(config["mutation_rates_ht_path"])
+        syn_vars = syn_vars.annotate(
+            mu=mutation_ht[
+                hl.struct(
+                    context=syn_vars.context,
+                    ref=syn_vars.ref,
+                    alt=syn_vars.alt,
+                    methylation_level=syn_vars.methylation_level,
+                )
+            ].mu_snp
+        )
+
+        all_genes = hl.import_table(input[0])
+
+        genes10 = all_genes.filter((all_genes.oe_lof_upper_bin == "0"))
+        genes10 = hl.set(genes10.gene.collect())
+
+        genes20 = all_genes.filter((all_genes.oe_lof_upper_bin == "1"))
+        genes20 = hl.set(genes20.gene.collect())
+
+        genes30 = all_genes.filter((all_genes.oe_lof_upper_bin == "2"))
+        genes30 = hl.set(genes30.gene.collect())
+
+        genes40 = all_genes.filter((all_genes.oe_lof_upper_bin == "3"))
+        genes40 = hl.set(genes40.gene.collect())
+
+        genes50 = all_genes.filter((all_genes.oe_lof_upper_bin == "4"))
+        genes50 = hl.set(genes50.gene.collect())
+
+        genes60 = all_genes.filter((all_genes.oe_lof_upper_bin == "5"))
+        genes60 = hl.set(genes60.gene.collect())
+
+        genes70 = all_genes.filter((all_genes.oe_lof_upper_bin == "6"))
+        genes70 = hl.set(genes70.gene.collect())
+
+        genes80 = all_genes.filter((all_genes.oe_lof_upper_bin == "7"))
+        genes80 = hl.set(genes80.gene.collect())
+
+        genes90 = all_genes.filter((all_genes.oe_lof_upper_bin == "8"))
+        genes90 = hl.set(genes90.gene.collect())
+
+        genes100 = all_genes.filter((all_genes.oe_lof_upper_bin == "9"))
+        genes100 = hl.set(genes100.gene.collect())
+
+        syn_vars = syn_vars.annotate(
+            loeuf=hl.case()
+            .when(genes10.contains(syn_vars.transcript_consequences.gene_symbol), 1)
+            .when(genes20.contains(syn_vars.transcript_consequences.gene_symbol), 2)
+            .when(genes30.contains(syn_vars.transcript_consequences.gene_symbol), 3)
+            .when(genes40.contains(syn_vars.transcript_consequences.gene_symbol), 4)
+            .when(genes50.contains(syn_vars.transcript_consequences.gene_symbol), 5)
+            .when(genes60.contains(syn_vars.transcript_consequences.gene_symbol), 6)
+            .when(genes70.contains(syn_vars.transcript_consequences.gene_symbol), 7)
+            .when(genes80.contains(syn_vars.transcript_consequences.gene_symbol), 8)
+            .when(genes90.contains(syn_vars.transcript_consequences.gene_symbol), 9)
+            .when(genes100.contains(syn_vars.transcript_consequences.gene_symbol), 10)
+            .or_missing()
+        )
+
+        syn_vars.group_by(
+        "context", "ref", "alt", "methylation_level", "mu", "loeuf"
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(syn_vars.freq[0].AC == 1),
+        ).export(
+            output[0]
+        )
+
+
+###############################################################################
+#                                   Metrics                                   #
+###############################################################################
+
+# CADD ########################################################################
+
+
+rule annotate_all_cadd:
+    output:
+        all_cadd,
+    run:
+        import hail as hl
+        from misc import get_an_adj_criteria, prepare_ht
+        from annotate_deciles import annotate_deciles
+
+        exomes = hl.read_table(config["exomes_ht_path"])
+
+        # Allele number (AN) adjustment.
+        exomes = exomes.filter(
+            get_an_adj_criteria(
+                exomes, {"female": config["female"], "male": config["male"]}
+            )
+        )
+
+        exomes = exomes.filter((exomes.freq[0].AF > 0) & (exomes.filters.length() == 0))
+
+        context = hl.read_table(config["context_ht_path"])
+        context = context[exomes.key]
+
+        exomes = prepare_ht(
+            exomes.annotate(context=context.context, methylation=context.methylation),
+            trimer=True,
+            annotate_coverage=False,
+        )
+
+        mutation_rates = hl.read_table(config["mutation_rates_ht_path"])
+        exomes = exomes.annotate(
+            mu=mutation_rates[
+                hl.struct(
+                    context=exomes.context,
+                    ref=exomes.ref,
+                    alt=exomes.alt,
+                    methylation_level=exomes.methylation_level,
+                )
+            ].mu_snp
+        )
+
+        # NOTE: requires '--requester-pays-allow-annotation-db'
+        cadd = hl.experimental.load_dataset(
+            name="CADD",
+            version="1.6",
+            reference_genome="GRCh37",
+            region="us",
+            cloud="gcp",
+        )
+
+        cadd = cadd[exomes.key]
+        exomes = exomes.annotate(cadd_phred=cadd.PHRED_score)
+
+        exomes = annotate_deciles(exomes, "cadd_phred").rename(
+            {"variable_bin": "cadd_decile"}
+        )
+
+        exomes.group_by(
+            "context",
+            "ref",
+            "alt",
+            "methylation_level",
+            "mu",
+            "cadd_decile",
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(exomes.freq[0].AC == 1),
+        ).export(
+            output[0]
+        )
+
+
+# DANN ########################################################################
+
+
+rule annotate_all_dann:
+    output:
+        all_dann,
+    run:
+        import hail as hl
+        from misc import get_an_adj_criteria, prepare_ht
+        from annotate_deciles import annotate_deciles
+
+        exomes = hl.read_table(config["exomes_ht_path"])
+
+        # Allele number (AN) adjustment.
+        exomes = exomes.filter(
+            get_an_adj_criteria(
+                exomes, {"female": config["female"], "male": config["male"]}
+            )
+        )
+
+        exomes = exomes.filter((exomes.freq[0].AF > 0) & (exomes.filters.length() == 0))
+
+        context = hl.read_table(config["context_ht_path"])
+        context = context[exomes.key]
+
+        exomes = prepare_ht(
+            exomes.annotate(context=context.context, methylation=context.methylation),
+            trimer=True,
+            annotate_coverage=False,
+        )
+
+        mutation_rates = hl.read_table(config["mutation_rates_ht_path"])
+        exomes = exomes.annotate(
+            mu=mutation_rates[
+                hl.struct(
+                    context=exomes.context,
+                    ref=exomes.ref,
+                    alt=exomes.alt,
+                    methylation_level=exomes.methylation_level,
+                )
+            ].mu_snp
+        )
+
+        # NOTE: requires '--requester-pays-allow-annotation-db'
+        dann = hl.experimental.load_dataset(
+            name="DANN",
+            version=None,
+            reference_genome="GRCh37",
+            region="us",
+            cloud="gcp",
+        )
+
+        dann = dann[exomes.key]
+        exomes = exomes.annotate(dann_score=dann.score)
+
+        exomes = annotate_deciles(exomes, "dann_score").rename(
+            {"variable_bin": "dann_decile"}
+        )
+
+        exomes.group_by(
+            "context",
+            "ref",
+            "alt",
+            "methylation_level",
+            "mu",
+            "dann_decile",
         ).aggregate(
             variant_count=hl.agg.count(),
             singleton_count=hl.agg.count_where(exomes.freq[0].AC == 1),

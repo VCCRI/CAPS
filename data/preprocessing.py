@@ -3,7 +3,7 @@ import hail as hl
 from misc import *
 
 def preprocessing(
-    exomes_ht,
+    data_ht,
     context_ht,
     sex_split,
     msc_type,
@@ -11,17 +11,17 @@ def preprocessing(
 ):
     """Preprocessing steps for selected variants.
 
-    exomes_ht -- WES variants (Hail table)
+    data_ht -- WES or WGS variants (Hail table)
     context_ht -- context (Hail table)
     sex_split -- how many males, how many females
     msc_type -- variant type based on most severe consequence
     biotype -- which transcripts should be selected
     """
 
-    exomes = hl.read_table(exomes_ht)
+    ht = hl.read_table(data_ht)
 
     # Allele number (AN) adjustment.
-    exomes = exomes.filter(get_an_adj_criteria(exomes, sex_split))
+    ht = ht.filter(get_an_adj_criteria(ht, sex_split))
 
     # Filter the table so that only those variants that have AF>0 and
     # filter PASS are retained.  The first condition is necessary
@@ -29,11 +29,11 @@ def preprocessing(
     # through QC have AF=0. The condition on "most_severe_consequence"
     # removes all pLoF variants, including variants in canonical
     # splice sites.
-    variants = exomes.filter(
-        (exomes.freq[0].AF > 0)
-        & (exomes.filters.length() == 0)
-        & (exomes.vep.variant_class == "SNV")
-        & (exomes.vep.most_severe_consequence == msc_type)
+    variants = ht.filter(
+        (ht.freq[0].AF > 0)
+        & (ht.filters.length() == 0)
+        & (ht.vep.variant_class == "SNV")
+        & (ht.vep.most_severe_consequence == msc_type)
     )
 
     # For each variant there is a list of
