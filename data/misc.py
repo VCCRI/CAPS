@@ -3,8 +3,10 @@ Functions for filtering and annotation of gnomAD variants.
 See https://github.com/macarthur-lab/gnomad_lof.
 """
 
+
 import hail as hl
 from typing import Union
+from constants import CSQ_ORDER
 
 
 def trimer_from_heptamer(
@@ -169,4 +171,70 @@ def get_an_adj_criteria(
             hail_table.freq[0].AN >= an_cutoff * sex_split["male"],
         )
         .or_missing()
+    )
+
+
+def filter_vep_to_canonical_transcripts(
+    mt: Union[hl.MatrixTable, hl.Table], vep_root: str = "vep"
+) -> Union[hl.MatrixTable, hl.Table]:
+    canonical = mt[vep_root].transcript_consequences.filter(
+        lambda csq: csq.canonical == 1
+    )
+    vep_data = mt[vep_root].annotate(transcript_consequences=canonical)
+    return (
+        mt.annotate_rows(**{vep_root: vep_data})
+        if isinstance(mt, hl.MatrixTable)
+        else mt.annotate(**{vep_root: vep_data})
+    )
+
+
+def get_worst_consequence_with_non_coding(ht):
+    def get_worst_csq(
+        csq_list: hl.expr.ArrayExpression, protein_coding: bool
+    ) -> hl.struct:
+        lof = hl.null(hl.tstr)
+        no_lof_flags = hl.null(hl.tbool)
+        # lof_filters = hl.null(hl.tstr)
+        # lof_flags = hl.null(hl.tstr)
+        if protein_coding:
+            all_lofs = csq_list.map(lambda x: x.lof)
+            lof = hl.literal(["HC", "OS", "LC"]).find(lambda x: all_lofs.contains(x))
+            csq_list = hl.cond(
+                hl.is_defined(lof), csq_list.filter(lambda x: x.lof == lof), csq_list
+            )
+            no_lof_flags = hl.or_missing(
+                hl.is_defined(lof),
+                csq_list.any(lambda x: (x.lof == lof) & hl.is_missing(x.lof_flags)),
+            )
+            # lof_filters = hl.delimit(hl.set(csq_list.map(lambda x: x.lof_filter).filter(lambda x: hl.is_defined(x))), '|')
+            # lof_flags = hl.delimit(hl.set(csq_list.map(lambda x: x.lof_flags).filter(lambda x: hl.is_defined(x))), '|')
+        all_csq_terms = csq_list.flatmap(lambda x: x.consequence_terms)
+        worst_csq = hl.literal(CSQ_ORDER).find(lambda x: all_csq_terms.contains(x))
+        return hl.struct(
+            worst_csq=worst_csq,
+            protein_coding=protein_coding,
+            lof=lof,
+            no_lof_flags=no_lof_flags,
+            # lof_filters=lof_filters, lof_flags=lof_flags
+        )
+
+    protein_coding = ht.vep.transcript_consequences.filter(
+        lambda x: x.biotype == "protein_coding"
+    )
+    return ht.annotate(
+        **hl.case(missing_false=True)
+        .when(hl.len(protein_coding) > 0, get_worst_csq(protein_coding, True))
+        .when(
+            hl.len(ht.vep.transcript_consequences) > 0,
+            get_worst_csq(ht.vep.transcript_consequences, False),
+        )
+        .when(
+            hl.len(ht.vep.regulatory_feature_consequences) > 0,
+            get_worst_csq(ht.vep.regulatory_feature_consequences, False),
+        )
+        .when(
+            hl.len(ht.vep.motif_feature_consequences) > 0,
+            get_worst_csq(ht.vep.motif_feature_consequences, False),
+        )
+        .default(get_worst_csq(ht.vep.intergenic_consequences, False))
     )

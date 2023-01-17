@@ -1,7 +1,7 @@
 # All variants (WES)
 exomes_ht_path: "gs://gcp-public-data--gnomad/release/2.1.1/ht/exomes/gnomad.exomes.r2.1.1.sites.ht/"
-male: 67961
-female: 57787
+male_exomes: 67961
+female_exomes: 57787
 
 # All variants (WGS)
 genomes_ht_path: "gs://gcp-public-data--gnomad/release/2.1.1/ht/genomes/gnomad.genomes.r2.1.1.sites.ht/"
@@ -21,3 +21,7 @@ context_ht_path: "gs://gcp-public-data--gnomad/papers/2019-flagship-lof/v1.0/con
 
 # LoF metrics (including LOEUF) by gene
 lof_metrics_by_gene: "https://storage.googleapis.com/gcp-public-data--gnomad/release/2.1.1/constraint/gnomad.v2.1.1.lof_metrics.by_gene.txt.bgz"
+
+# Coverage
+coverage_exomes_ht_path: "gs://gcp-public-data--gnomad/release/2.1/coverage/exomes/gnomad.exomes.r2.1.coverage.ht"
+coverage_genomes_ht_path: "gs://gcp-public-data--gnomad/release/2.1/coverage/genomes/gnomad.genomes.r2.1.coverage.ht"
