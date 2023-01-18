@@ -2,12 +2,18 @@ from snakemake.remote.GS import RemoteProvider
 
 GS = RemoteProvider()
 
+caps_model = "../model/greta_model.R"
+filter_by_worst_csq = "filter_by_worst_csq.R"
 calculate_caps = "calculate_caps.R"
 calculate_maps = "calculate_maps.R"
 compare_scores = "compare_scores.R"
 viz_scores = "viz_scores.R"
+counts = "counts.R"
+process_by_csq = "process_by_csq.R"
+join_groups = "join_groups.R"
 viz_scores_multi = "viz_scores_multi.R"
 annotate_with_mutability_bands = "annotate_with_mutability_bands.R"
+Whiffin2020_uORFs_preprocessing = "Whiffin2020_uORFs_preprocessing.R"
 
 colors2 = ["#999899", "#B11116"]
 colors3 = ["#F04B5D", "#B11116", "#999899"]
@@ -20,30 +26,70 @@ greys = ["#56565A", "#999899", "#BDBBBB", "#D8D1CA", "#CDC3BB"]
 ###############################################################################
 
 # General #####################################################################
-# Synonymous variants grouped by context/mutability
-syn_by_context = GS.remote(config["gcp_rootdir"] + "syn_by_context.tsv")
-# Intronic variants grouped by context/mutability
-intronic_by_context = GS.remote(config["gcp_rootdir"] + "intronic_by_context.tsv")
 # All variants grouped by their most severe consequence
 by_csq_unprocessed = GS.remote(config["gcp_rootdir"] + "by_csq.tsv")
 by_csq = "by_csq.tsv"
+# All variants grouped by their most severe consequence (genomes)
+by_csq_genomes_unprocessed = GS.remote(config["gcp_rootdir"] + "by_csq_genomes.tsv")
+by_csq_genomes = "by_csq_genomes.tsv"
+# All variants grouped by LOEUF bin
+all_constrained = GS.remote(config["gcp_rootdir"] + "all_constrained.tsv")
+# Synonymous variants grouped by LOEUF bin
+syn_constrained = GS.remote(config["gcp_rootdir"] + "syn_constrained.tsv")
+# Mutability table
+mutation_ht = GS.remote(config["gcp_rootdir"] + "mutation_ht.tsv")
+# Whiffin2020 #################################################################
+syn_by_context_Whiffin2020 = GS.remote(
+    config["gcp_rootdir"] + "syn_by_context_Whiffin2020.tsv"
+)
+intronic_by_context_Whiffin2020 = GS.remote(
+    config["gcp_rootdir"] + "intronic_by_context_Whiffin2020.tsv"
+)
+Whiffin2020_stop_unprocessed = (
+    "uORFs/data_files/stop-removing_all_possible_annotated.txt"
+)
+Whiffin2020_uAUG_unprocessed = (
+    "uORFs/data_files/uAUG-creating_all_possible_annotated.txt"
+)
 
 # Model #######################################################################
 # Synonymous variants with 4 missing contexts added
 syn_by_context_p4 = "../model/phat.tsv"
 syn_by_context_pdd = "../model/phat_sim.tsv"
-
+# Synonymous variants with 4 missing contexts added (genomes)
+syn_by_context_p4_genomes = "../model/phat_genomes.tsv"
+syn_by_context_pdd_genomes = "../model/phat_sim_genomes.tsv"
+# Synonymous variants with 4 missing contexts added (Whiffin2020 QC)
+syn_by_context_p4_Whiffin2020 = "../model/phat_Whiffin2020.tsv"
+syn_by_context_pdd_Whiffin2020 = "../model/phat_sim_Whiffin2020.tsv"
 
 ###############################################################################
 #                               Auxiliary files                               #
 ###############################################################################
 
+# General #####################################################################
+# Synonymous variants grouped by context/mutability (exomes)
+syn_by_context = "syn_by_context.tsv"
+# Intronic variants grouped by context/mutability (exomes)
+intronic_by_context = "intronic_by_context.tsv"
+# Synonymous variants grouped by context/mutability (genomes)
+syn_by_context_genomes = "syn_by_context_genomes.tsv"
+# Intronic variants grouped by context/mutability (genomes)
+intronic_by_context_genomes = "intronic_by_context_genomes.tsv"
 # CAPS scores for all major functional classes of SNVs
 caps_by_csq_scores = "all_csq_caps.tsv"
+caps_by_csq_genomes_scores = "all_csq_genomes_caps.tsv"
 # CAPS-PDD scores for all major functional classes of SNVs
 caps_pdd_by_csq_scores = "all_csq_caps_pdd.tsv"
+caps_pdd_by_csq_genomes_scores = "all_csq_genomes_caps_pdd.tsv"
+# Synonymous variants annotated with mutability bands
+syn_w_mutability_bands = "syn_w_mutability_bands.tsv"
 # All variants annotated with mutability bands
 all_w_mutability_bands = "all_w_mutability_bands.tsv"
+# Synonymous variants by mutability band (CAPS score)
+syn_vars_caps_by_mutability_band_scores = "syn_mutband_caps.tsv"
+# Synonymous variants by mutability band (MAPS score)
+syn_vars_maps_by_mutability_band_scores = "syn_mutband_maps.tsv"
 # All variant by mutability band (MAPS score)
 all_vars_maps_by_mutability_band_scores = "all_mutband_maps.tsv"
 # All variant by mutability band (MAPS score, square-root transformed mutability model)
@@ -52,19 +98,74 @@ all_vars_sqrt_by_mutability_band_scores = "all_mutband_sqrt.tsv"
 all_vars_caps_by_mutability_band_scores = "all_mutband_caps.tsv"
 # All variants by most severe consequences (MAPS score)
 maps_by_csq_scores = "all_csq_maps.tsv"
-
+maps_by_csq_genomes_scores = "all_csq_genomes_maps.tsv"
+# All variants by Top % LOEUF group
+all_constrained_joined_groups = "all_constrained_joined_groups.tsv"
+# Synonymous variants by Top % LOEUF group
+syn_constrained_joined_groups = "syn_constrained_joined_groups.tsv"
+# All variants by Top % LOEUF group (CAPS score)
+all_constrained_tops_scores = "all_constrained_caps.tsv"
+# Synonymous variants by Top % LOEUF group (CAPS score)
+syn_constrained_tops_scores = "syn_constrained_caps.tsv"
+# Model #######################################################################
+theta_sample = "../model/theta_sample.tsv"
+theta_sample_genomes = "../model/theta_sample_genomes.tsv"
+theta_sample_Whiffin2020 = "../model/theta_sample_Whiffin2020.tsv"
+# Whiffin2020 #################################################################
+Whiffin2020_stop = "stop-removing_all_possible_annotated.tsv"
+Whiffin2020_uAUG = "uAUG-creating_all_possible_annotated.tsv"
+Whiffin2020_uORFs_effects_stop_maps_scores = (
+    "Whiffin2020_uORFs_effects_stop_maps_scores.tsv"
+)
+Whiffin2020_uORFs_effects_stop_caps_scores = (
+    "Whiffin2020_uORFs_effects_stop_caps_scores.tsv"
+)
+Whiffin2020_uORFs_effects_uAUG_maps_scores = (
+    "Whiffin2020_uORFs_effects_uAUG_maps_scores.tsv"
+)
+Whiffin2020_uORFs_effects_uAUG_caps_scores = (
+    "Whiffin2020_uORFs_effects_uAUG_caps_scores.tsv"
+)
+Whiffin2020_uORFs_kozak_stop_maps_scores = (
+    "Whiffin2020_uORFs_kozak_stop_maps_scores.tsv"
+)
+Whiffin2020_uORFs_kozak_stop_caps_scores = (
+    "Whiffin2020_uORFs_kozak_stop_caps_scores.tsv"
+)
+Whiffin2020_uORFs_kozak_uAUG_maps_scores = (
+    "Whiffin2020_uORFs_kozak_uAUG_maps_scores.tsv"
+)
+Whiffin2020_uORFs_kozak_uAUG_caps_scores = (
+    "Whiffin2020_uORFs_kozak_uAUG_caps_scores.tsv"
+)
+Whiffin2020_uORFs_distanceCDS_uAUG_maps_scores = (
+    "Whiffin2020_uORFs_distanceCDS_uAUG_maps_scores.tsv"
+)
+Whiffin2020_uORFs_distanceCDS_uAUG_caps_scores = (
+    "Whiffin2020_uORFs_distanceCDS_uAUG_caps_scores.tsv"
+)
 
 ###############################################################################
 #                                 Output files                                #
 ###############################################################################
 
+# Counts by variant class
+counts_by_csq = "all_csq_counts.tex"
+# Counts by variant class (genomes)
+counts_by_csq_genomes = "all_csq_counts_genomes.tex"
 # CAPS and MAPS scores for all major functional classes of SNVs
 scores2_by_csq_plot = "all_csq_scores2.pdf"
+scores2_by_csq_genomes_plot = "all_csq_scores2_genomes.pdf"
 scores3_by_csq_plot = "all_csq_scores3.pdf"
+scores3_by_csq_genomes_plot = "all_csq_scores3_genomes.pdf"
 # Plot of CAPS scores for all major functional classes of SNVs
 caps_by_csq_plot = "all_csq_caps.pdf"
 # CAPS-PDD scores for all major functional classes of SNVs
 caps_pdd_by_csq_plot = "all_csq_caps_pdd.pdf"
+# Synonymous variants by mutability band (CAPS score)
+syn_vars_caps_by_mutability_band_plot = "syn_mutband_caps.pdf"
+# Synonymous variants by mutability band (MAPS score)
+syn_vars_maps_by_mutability_band_plot = "syn_mutband_maps.pdf"
 # All variant by mutability band (MAPS score)
 all_vars_maps_by_mutability_band_plot = "all_mutband_maps.pdf"
 # All variant by mutability band (MAPS score, square-root transformed mutability model)
@@ -77,24 +178,37 @@ all_vars_scores2_by_mutability_band_plot = "all_mutband_scores2.pdf"
 maps_by_csq_plot = "all_csq_maps.pdf"
 # Table summarising the difference in scores of the 3 models
 scores3_by_csq_scores_comparison = "scores3_by_csq_scores_comparison.tex"
+# All variants by Top % LOEUF group
+all_constrained_plot = "all_constrained_caps.pdf"
+# Synonymous variants by Top % LOEUF group
+syn_constrained_plot = "syn_constrained_caps.pdf"
+# Whiffin2020 #################################################################
+Whiffin2020_uORFs_effects_uAUG_plot = "Whiffin2020_uORFs_effects_uAUG.pdf"
+Whiffin2020_uORFs_effects_stop_plot = "Whiffin2020_uORFs_effects_stop.pdf"
+Whiffin2020_uORFs_kozak_uAUG_plot = "Whiffin2020_uORFs_kozak_uAUG.pdf"
+Whiffin2020_uORFs_distanceCDS_uAUG_plot = "Whiffin2020_uORFs_distanceCDS_uAUG.pdf"
+Whiffin2020_uORFs_kozak_stop_plot = "Whiffin2020_uORFs_kozak_stop.pdf"
 
 
 rule all:
     input:
+        # Misc files ##########################################################
+        counts_by_csq,
+        counts_by_csq_genomes,
         # Plots ###############################################################
-        # Mutability bias
         all_vars_scores2_by_mutability_band_plot,
-        # By variant class
         scores2_by_csq_plot,
+        scores2_by_csq_genomes_plot,
         scores3_by_csq_plot,
-        # maps_by_csq_plot,
-        # caps_by_csq_plot,
-        # caps_pdd_by_csq_plot,
+        scores3_by_csq_genomes_plot,
+        syn_constrained_plot,
+        Whiffin2020_uORFs_kozak_uAUG_plot,
+        Whiffin2020_uORFs_distanceCDS_uAUG_plot,
+        Whiffin2020_uORFs_kozak_stop_plot,
+        Whiffin2020_uORFs_effects_uAUG_plot,
+        Whiffin2020_uORFs_effects_stop_plot,
         # Scores ##############################################################
         scores3_by_csq_scores_comparison,
-        # caps_pdd_by_csq_scores,
-        # caps_by_csq_scores,
-        # maps_by_csq_scores,
 
 
 ###############################################################################
@@ -106,7 +220,113 @@ rule process_by_csq:
     output:
         by_csq_processed=by_csq,
     script:
-        "process_by_csq.R"
+        process_by_csq
+
+
+rule process_by_csq_genomes:
+    input:
+        by_csq_unprocessed=by_csq_genomes_unprocessed,
+    output:
+        by_csq_processed=by_csq_genomes,
+    script:
+        process_by_csq
+
+
+###############################################################################
+#                                  CAPS model                                 #
+###############################################################################
+
+
+rule caps_model:
+    input:
+        syn_vars=syn_by_context,
+        intron_vars=intronic_by_context,
+    output:
+        phat=syn_by_context_p4,
+        phat_sim=syn_by_context_pdd,
+        theta_sample=theta_sample,
+    resources:
+        mem_mb=3072,
+    script:
+        caps_model
+
+
+rule caps_model_genomes:
+    input:
+        syn_vars=syn_by_context_genomes,
+        intron_vars=intronic_by_context_genomes,
+    output:
+        phat=syn_by_context_p4_genomes,
+        phat_sim=syn_by_context_pdd_genomes,
+        theta_sample=theta_sample_genomes,
+    resources:
+        mem_mb=3072,
+    script:
+        caps_model
+
+
+rule caps_model_Whiffin2020:
+    input:
+        syn_vars=syn_by_context_Whiffin2020,
+        intron_vars=intronic_by_context_Whiffin2020,
+    output:
+        phat=syn_by_context_p4_Whiffin2020,
+        phat_sim=syn_by_context_pdd_Whiffin2020,
+        theta_sample=theta_sample_Whiffin2020,
+    resources:
+        mem_mb=3072,
+    script:
+        caps_model
+
+
+###############################################################################
+
+
+rule syn_by_context:
+    input:
+        In=by_csq,
+    output:
+        Out=syn_by_context,
+    params:
+        worst_csq="synonymous_variant",
+    script:
+        filter_by_worst_csq
+
+
+rule syn_by_context_genomes:
+    input:
+        In=by_csq_genomes,
+    output:
+        Out=syn_by_context_genomes,
+    params:
+        worst_csq="synonymous_variant",
+    script:
+        filter_by_worst_csq
+
+
+rule intronic_by_context:
+    input:
+        In=by_csq,
+    output:
+        Out=intronic_by_context,
+    params:
+        worst_csq="intron_variant",
+    script:
+        filter_by_worst_csq
+
+
+rule intronic_by_context_genomes:
+    input:
+        In=by_csq_genomes,
+    output:
+        Out=intronic_by_context_genomes,
+    params:
+        worst_csq="intron_variant",
+    script:
+        filter_by_worst_csq
+
+
+###############################################################################
 
 
 rule all_vars_scores2_by_mutability_band_plot:
@@ -179,6 +399,55 @@ rule scores2_by_csq_plot:
         viz_scores_multi
 
 
+rule scores2_by_csq_genomes_plot:
+    input:
+        scores=[caps_by_csq_genomes_scores, maps_by_csq_genomes_scores],
+    params:
+        xlab_labels_set=[
+            "intergenic_variant",
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        xlab_labels=[
+            "intergenic_variant",
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        new_xlab_labels=[
+            "Intergenic",
+            "Intron",
+            "5'UTR",
+            "3'UTR",
+            "Synonymous",
+            "Missense",
+            "Essential splice",
+            "Nonsense",
+        ],
+        model_labels=["maps", "caps"],
+        new_model_labels=["MAPS", "CAPS"],
+        colors=colors2,
+        xlab="",
+        ylab="Selection score",
+        xlab_angle=45,
+        xlab_hjust=1,
+        xlab_vjust=1,
+        legend_title="",
+    output:
+        plot=scores2_by_csq_genomes_plot,
+    script:
+        viz_scores_multi
+
+
 rule scores3_by_csq_plot:
     input:
         scores=[caps_pdd_by_csq_scores, caps_by_csq_scores, maps_by_csq_scores],
@@ -226,6 +495,60 @@ rule scores3_by_csq_plot:
         viz_scores_multi
 
 
+rule scores3_by_csq_genomes_plot:
+    input:
+        scores=[
+            caps_pdd_by_csq_genomes_scores,
+            caps_by_csq_genomes_scores,
+            maps_by_csq_genomes_scores,
+        ],
+    params:
+        xlab_labels_set=[
+            "intergenic_variant",
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        xlab_labels=[
+            "intergenic_variant",
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        new_xlab_labels=[
+            "Intergenic",
+            "Intron",
+            "5'UTR",
+            "3'UTR",
+            "Synonymous",
+            "Missense",
+            "Essential splice",
+            "Nonsense",
+        ],
+        model_labels=["caps_pdd", "caps", "maps"],
+        new_model_labels=["CAPS-PDD", "CAPS", "MAPS"],
+        dodge_width=0.95,
+        colors=colors3,
+        xlab="",
+        ylab="Selection score",
+        xlab_angle=45,
+        xlab_hjust=1,
+        xlab_vjust=1,
+        legend_title="",
+    output:
+        plot=scores3_by_csq_genomes_plot,
+    script:
+        viz_scores_multi
+
+
 rule scores3_by_csq_scores_comparison:
     input:
         scores=[caps_pdd_by_csq_scores, caps_by_csq_scores, maps_by_csq_scores],
@@ -268,6 +591,54 @@ rule scores3_by_csq_scores_comparison:
         compare_scores
 
 
+rule syn_vars_maps_by_mutability_band_plot:
+    input:
+        scores=syn_vars_maps_by_mutability_band_scores,
+    output:
+        plot=syn_vars_maps_by_mutability_band_plot,
+    params:
+        xlab_angle=45,
+        ylim_min=-0.02,
+        ylim_max=0.04,
+        xlab_labels=["Highest", "Higher", "Lower", "Lowest"],
+        new_xlab_labels=["Highest", "Higher", "Lower", "Lowest"],
+        xlab_vjust=1,
+        xlab_hjust=1,
+        reorder_xlab_by_score=False,
+        score_name="maps",
+        lconf="maps_lconf",
+        uconf="maps_uconf",
+    script:
+        viz_scores
+
+
+rule syn_vars_maps_by_mutability_band:
+    input:
+        variants=syn_w_mutability_bands,
+        calibrate_on=syn_by_context,
+    params:
+        extra="mutability_band",
+        transformation="+",
+    output:
+        scores=syn_vars_maps_by_mutability_band_scores,
+    script:
+        calculate_maps
+
+
+rule syn_vars_caps_by_mutability_band:
+    input:
+        variants=syn_w_mutability_bands,
+        exp_variants=syn_by_context_p4,
+    params:
+        phat_method="Var",
+        confint_method="CAPS",
+        variable="mutability_band",
+    output:
+        scores=syn_vars_caps_by_mutability_band_scores,
+    script:
+        calculate_caps
+
+
 rule maps_by_csq_scores:
     input:
         variants=by_csq,
@@ -277,6 +648,19 @@ rule maps_by_csq_scores:
         transformation="+",
     output:
         scores=maps_by_csq_scores,
+    script:
+        calculate_maps
+
+
+rule maps_by_csq_genomes_scores:
+    input:
+        variants=by_csq_genomes,
+        calibrate_on=syn_by_context_genomes,
+    params:
+        extra="worst_csq",
+        transformation="+",
+    output:
+        scores=maps_by_csq_genomes_scores,
     script:
         calculate_maps
 
@@ -460,6 +844,20 @@ rule caps_by_csq_scores:
         calculate_caps
 
 
+rule caps_by_csq_genomes_scores:
+    input:
+        variants=by_csq_genomes,
+        exp_variants=syn_by_context_p4_genomes,
+    params:
+        phat_method="Var",
+        confint_method="CAPS",
+        variable="worst_csq",
+    output:
+        scores=caps_by_csq_genomes_scores,
+    script:
+        calculate_caps
+
+
 rule caps_pdd_by_csq_scores:
     input:
         variants=by_csq,
@@ -469,6 +867,19 @@ rule caps_pdd_by_csq_scores:
         variable="worst_csq",
     output:
         scores=caps_pdd_by_csq_scores,
+    script:
+        calculate_caps
+
+
+rule caps_pdd_by_csq_genomes_scores:
+    input:
+        variants=by_csq_genomes,
+        exp_variants=syn_by_context_pdd_genomes,
+    params:
+        phat_method="PDD",
+        variable="worst_csq",
+    output:
+        scores=caps_pdd_by_csq_genomes_scores,
     script:
         calculate_caps
 
@@ -563,3 +974,542 @@ rule caps_pdd_by_csq_plot:
         uconf="caps_pdd_uconf",
     script:
         viz_scores
+
+
+######################################################################
+
+
+rule all_loeuf_bins_to_tops:
+    input:
+        groups=all_constrained,
+    output:
+        joined_groups=all_constrained_joined_groups,
+    params:
+        variable="loeuf",
+        desc=True,
+    script:
+        join_groups
+
+
+rule syn_loeuf_bins_to_tops:
+    input:
+        groups=syn_constrained,
+    output:
+        joined_groups=syn_constrained_joined_groups,
+    params:
+        variable="loeuf",
+        desc=True,
+    script:
+        join_groups
+
+
+rule calculate_by_loeuf_group_all:
+    input:
+        variants=all_constrained_joined_groups,
+        exp_variants=syn_by_context_p4,
+    params:
+        phat_method="Var",
+        variable="loeuf",
+    output:
+        scores=all_constrained_tops_scores,
+    script:
+        calculate_caps
+
+
+rule calculate_by_loeuf_group_syn:
+    input:
+        variants=syn_constrained_joined_groups,
+        exp_variants=syn_by_context_p4,
+    params:
+        phat_method="Var",
+        variable="loeuf",
+    output:
+        scores=syn_constrained_tops_scores,
+    script:
+        calculate_caps
+
+
+rule all_loeuf_groups_plot:
+    input:
+        scores=all_constrained_tops_scores,
+    output:
+        plot=all_constrained_plot,
+    params:
+        xlab="LOEUF top group",
+        reorder_xlab_by_score=False,
+        aspect_ratio=0.5,
+        xlab_labels=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+        new_xlab_labels=[
+            "10%",
+            "20%",
+            "30%",
+            "40%",
+            "50%",
+            "60%",
+            "70%",
+            "80%",
+            "90%",
+            "100%",
+        ],
+        xlab_angle=45,
+        xlab_vjust=1,
+        xlab_hjust=1,
+        score_name="caps",
+        lconf="caps_lconf",
+        uconf="caps_uconf",
+    script:
+        viz_scores
+
+
+rule syn_loeuf_groups_plot:
+    input:
+        scores=syn_constrained_tops_scores,
+    output:
+        plot=syn_constrained_plot,
+    params:
+        xlab="LOEUF top group",
+        reorder_xlab_by_score=False,
+        aspect_ratio=0.5,
+        xlab_labels=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+        new_xlab_labels=[
+            "10%",
+            "20%",
+            "30%",
+            "40%",
+            "50%",
+            "60%",
+            "70%",
+            "80%",
+            "90%",
+            "100%",
+        ],
+        xlab_angle=45,
+        xlab_vjust=1,
+        xlab_hjust=1,
+        score_name="caps",
+        lconf="caps_lconf",
+        uconf="caps_uconf",
+    script:
+        viz_scores
+
+
+###############################################################################
+
+
+rule counts_by_csq:
+    input:
+        variants=by_csq,
+    params:
+        coverage_threshold=30,
+        mode="tex",
+        caption="Total number of variants observed in each functional class for exomes.",
+        variable="worst_csq",
+        labels_set=[
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        labels=[
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        new_labels=[
+            "Intron",
+            "5'UTR",
+            "3'UTR",
+            "Synonymous",
+            "Missense",
+            "Essential splice",
+            "Nonsense",
+        ],
+    output:
+        Out=counts_by_csq,
+    script:
+        counts
+
+
+rule counts_by_csq_genomes:
+    input:
+        variants=by_csq_genomes,
+    params:
+        coverage_threshold=30,
+        mode="tex",
+        caption="Total number of variants observed in each functional class for genomes.",
+        variable="worst_csq",
+        labels_set=[
+            "intergenic_variant",
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        labels=[
+            "intergenic_variant",
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        new_labels=[
+            "Intergenic",
+            "Intron",
+            "5'UTR",
+            "3'UTR",
+            "Synonymous",
+            "Missense",
+            "Essential splice",
+            "Nonsense",
+        ],
+    output:
+        Out=counts_by_csq_genomes,
+    script:
+        counts
+
+
+###############################################################################
+#                          Whiffin2020 uORFs analysis                         #
+###############################################################################
+
+
+rule Whiffin2020_get_files1:
+    output:
+        Whiffin2020_stop_unprocessed,
+    shell:
+        """
+        wget https://github.com/ImperialCardioGenetics/uORFs/raw/master/data_files/stop-removing_all_possible_annotated.txt.gz
+        gunzip -c stop-removing_all_possible_annotated.txt.gz > {output[0]}
+        """
+
+
+rule Whiffin2020_get_files2:
+    output:
+        Whiffin2020_uAUG_unprocessed,
+    shell:
+        """
+        wget https://github.com/ImperialCardioGenetics/uORFs/raw/master/data_files/uAUG-creating_all_possible_annotated.txt.gz
+        gunzip -c uAUG-creating_all_possible_annotated.txt.gz > {output[0]}
+        """
+
+
+rule Whiffin2020_uORFs_preprocessing_stop:
+    input:
+        inFile=Whiffin2020_stop_unprocessed,
+        mu=mutation_ht,
+    output:
+        outFile=Whiffin2020_stop,
+    script:
+        Whiffin2020_uORFs_preprocessing
+
+
+rule Whiffin2020_uORFs_preprocessing_uAUG:
+    input:
+        inFile=Whiffin2020_uAUG_unprocessed,
+        mu=mutation_ht,
+    output:
+        outFile=Whiffin2020_uAUG,
+    script:
+        Whiffin2020_uORFs_preprocessing
+
+
+# Effects #############################################################
+
+
+rule Whiffin2020_uORFs_effects_maps_stop:
+    input:
+        calibrate_on=syn_by_context_Whiffin2020,
+        variants=Whiffin2020_stop,
+    params:
+        extra="effect",
+        transformation="+",
+    output:
+        scores=Whiffin2020_uORFs_effects_stop_maps_scores,
+    script:
+        calculate_maps
+
+
+rule Whiffin2020_uORFs_effects_caps_stop:
+    input:
+        variants=Whiffin2020_stop,
+        exp_variants=syn_by_context_p4_Whiffin2020,
+    params:
+        phat_method="Var",
+        confint_method="CAPS",
+        variable="effect",
+    output:
+        scores=Whiffin2020_uORFs_effects_stop_caps_scores,
+    script:
+        calculate_caps
+
+
+rule Whiffin2020_uORFs_effects_plot_stop:
+    input:
+        scores=[
+            Whiffin2020_uORFs_effects_stop_maps_scores,
+            Whiffin2020_uORFs_effects_stop_caps_scores,
+        ],
+    params:
+        xlab_labels_set=["uORF_elongated", "out-of-frame_oORF"],
+        xlab_labels=["uORF_elongated", "out-of-frame_oORF"],
+        new_xlab_labels=["uORF elongated", "oORF formed"],
+        model_labels=["maps", "caps"],
+        new_model_labels=["MAPS", "CAPS"],
+        colors=colors2,
+        legend_title="",
+        xlab="",
+        ylab="Selection score",
+        xlab_angle=90,
+        xlab_hjust=1,
+        xlab_vjust=1,
+        ylim_min=-0.1,
+        ylim_max=0.2,
+        # Value taken from "gs://gcp-public-data--gnomad/papers/2019-flagship-lof/v1.0/summary_results/maps_plain_genomes.txt.bgz"
+        gnomAD_missense_level_genomes=0.06182,
+    output:
+        plot=Whiffin2020_uORFs_effects_stop_plot,
+    script:
+        viz_scores_multi
+
+
+rule Whiffin2020_uORFs_effects_maps_uAUG:
+    input:
+        calibrate_on=syn_by_context_Whiffin2020,
+        variants=Whiffin2020_uAUG,
+    params:
+        extra="effect",
+        transformation="+",
+    output:
+        scores=Whiffin2020_uORFs_effects_uAUG_maps_scores,
+    script:
+        calculate_maps
+
+
+rule Whiffin2020_uORFs_effects_caps_uAUG:
+    input:
+        variants=Whiffin2020_uAUG,
+        exp_variants=syn_by_context_p4_Whiffin2020,
+    params:
+        phat_method="Var",
+        confint_method="CAPS",
+        variable="effect",
+    output:
+        scores=Whiffin2020_uORFs_effects_uAUG_caps_scores,
+    script:
+        calculate_caps
+
+
+rule Whiffin2020_uORFs_effects_plot_uAUG:
+    input:
+        scores=[
+            Whiffin2020_uORFs_effects_uAUG_maps_scores,
+            Whiffin2020_uORFs_effects_uAUG_caps_scores,
+        ],
+    params:
+        xlab_labels_set=["uORF_created", "out-of-frame_oORF", "CDS_elongated"],
+        xlab_labels=["uORF_created", "out-of-frame_oORF", "CDS_elongated"],
+        new_xlab_labels=["uORF created", "Out-of-frame oORF", "CDS elongated"],
+        model_labels=["maps", "caps"],
+        new_model_labels=["MAPS", "CAPS"],
+        colors=colors2,
+        legend_title="",
+        xlab="",
+        ylab="Selection score",
+        xlab_angle=90,
+        xlab_hjust=1,
+        xlab_vjust=1,
+        ylim_min=-0.1,
+        ylim_max=0.2,
+        # Value taken from "gs://gcp-public-data--gnomad/papers/2019-flagship-lof/v1.0/summary_results/maps_plain_genomes.txt.bgz"
+        gnomAD_missense_level_genomes=0.06182,
+    output:
+        plot=Whiffin2020_uORFs_effects_uAUG_plot,
+    script:
+        viz_scores_multi
+
+
+# Kozak strength ######################################################
+
+
+rule Whiffin2020_uORFs_kozak_maps_stop:
+    input:
+        calibrate_on=syn_by_context_Whiffin2020,
+        variants=Whiffin2020_stop,
+    params:
+        extra="Kozak_strength",
+        transformation="+",
+    output:
+        scores=Whiffin2020_uORFs_kozak_stop_maps_scores,
+    script:
+        calculate_maps
+
+
+rule Whiffin2020_uORFs_kozak_caps_stop:
+    input:
+        variants=Whiffin2020_stop,
+        exp_variants=syn_by_context_p4_Whiffin2020,
+    params:
+        phat_method="Var",
+        confint_method="CAPS",
+        variable="Kozak_strength",
+    output:
+        scores=Whiffin2020_uORFs_kozak_stop_caps_scores,
+    script:
+        calculate_caps
+
+
+rule Whiffin2020_uORFs_kozak_plot_stop:
+    input:
+        scores=[
+            Whiffin2020_uORFs_kozak_stop_maps_scores,
+            Whiffin2020_uORFs_kozak_stop_caps_scores,
+        ],
+    params:
+        xlab_labels_set=["weak", "moderate", "strong"],
+        xlab_labels=["weak", "moderate", "strong"],
+        new_xlab_labels=["Weak", "Moderate", "Strong"],
+        model_labels=["maps", "caps"],
+        new_model_labels=["MAPS", "CAPS"],
+        colors=colors2,
+        legend_title="",
+        xlab="",
+        ylab="Selection score",
+        xlab_angle=90,
+        xlab_hjust=1,
+        xlab_vjust=1,
+        ylim_min=-0.1,
+        ylim_max=0.2,
+        # Value taken from "gs://gcp-public-data--gnomad/papers/2019-flagship-lof/v1.0/summary_results/maps_plain_genomes.txt.bgz"
+        gnomAD_missense_level_genomes=0.06182,
+    output:
+        plot=Whiffin2020_uORFs_kozak_stop_plot,
+    script:
+        viz_scores_multi
+
+
+rule Whiffin2020_uORFs_kozak_maps_uAUG:
+    input:
+        calibrate_on=syn_by_context_Whiffin2020,
+        variants=Whiffin2020_uAUG,
+    params:
+        extra="Kozak_strength",
+        transformation="+",
+    output:
+        scores=Whiffin2020_uORFs_kozak_uAUG_maps_scores,
+    script:
+        calculate_maps
+
+
+rule Whiffin2020_uORFs_kozak_caps_uAUG:
+    input:
+        variants=Whiffin2020_uAUG,
+        exp_variants=syn_by_context_p4_Whiffin2020,
+    params:
+        phat_method="Var",
+        confint_method="CAPS",
+        variable="Kozak_strength",
+    output:
+        scores=Whiffin2020_uORFs_kozak_uAUG_caps_scores,
+    script:
+        calculate_caps
+
+
+rule Whiffin2020_uORFs_kozak_plot_uAUG:
+    input:
+        scores=[
+            Whiffin2020_uORFs_kozak_uAUG_maps_scores,
+            Whiffin2020_uORFs_kozak_uAUG_caps_scores,
+        ],
+    params:
+        xlab_labels_set=["weak", "moderate", "strong"],
+        xlab_labels=["weak", "moderate", "strong"],
+        new_xlab_labels=["Weak", "Moderate", "Strong"],
+        model_labels=["maps", "caps"],
+        new_model_labels=["MAPS", "CAPS"],
+        colors=colors2,
+        legend_title="",
+        xlab="",
+        ylab="Selection score",
+        xlab_angle=90,
+        xlab_hjust=1,
+        xlab_vjust=1,
+        ylim_min=-0.1,
+        ylim_max=0.2,
+        # Value taken from "gs://gcp-public-data--gnomad/papers/2019-flagship-lof/v1.0/summary_results/maps_plain_genomes.txt.bgz"
+        gnomAD_missense_level_genomes=0.06182,
+    output:
+        plot=Whiffin2020_uORFs_kozak_uAUG_plot,
+    script:
+        viz_scores_multi
+
+
+# Distance to CDS #####################################################
+
+
+rule Whiffin2020_uORFs_distanceCDS_maps_uAUG:
+    input:
+        calibrate_on=syn_by_context_Whiffin2020,
+        variants=Whiffin2020_uAUG,
+    params:
+        extra="distanceToCDS",
+        transformation="+",
+    output:
+        scores=Whiffin2020_uORFs_distanceCDS_uAUG_maps_scores,
+    script:
+        calculate_maps
+
+
+rule Whiffin2020_uORFs_distanceCDS_caps_uAUG:
+    input:
+        variants=Whiffin2020_uAUG,
+        exp_variants=syn_by_context_p4_Whiffin2020,
+    params:
+        phat_method="Var",
+        confint_method="CAPS",
+        variable="distanceToCDS",
+    output:
+        scores=Whiffin2020_uORFs_distanceCDS_uAUG_caps_scores,
+    script:
+        calculate_caps
+
+
+rule Whiffin2020_uORFs_distanceCDS_plot_uAUG:
+    input:
+        scores=[
+            Whiffin2020_uORFs_distanceCDS_uAUG_maps_scores,
+            Whiffin2020_uORFs_distanceCDS_uAUG_caps_scores,
+        ],
+    params:
+        # xlab_labels_set=["", "", ""],
+        # xlab_labels=["", "", ""],
+        # new_xlab_labels=["", "", ""],
+        model_labels=["maps", "caps"],
+        new_model_labels=["MAPS", "CAPS"],
+        colors=colors2,
+        legend_title="",
+        xlab="",
+        ylab="Selection score",
+        xlab_angle=90,
+        xlab_hjust=1,
+        xlab_vjust=1,
+        ylim_min=-0.1,
+        ylim_max=0.2,
+        # Value taken from "gs://gcp-public-data--gnomad/papers/2019-flagship-lof/v1.0/summary_results/maps_plain_genomes.txt.bgz"
+        gnomAD_missense_level_genomes=0.06182,
+    output:
+        plot=Whiffin2020_uORFs_distanceCDS_uAUG_plot,
+    script:
+        viz_scores_multi

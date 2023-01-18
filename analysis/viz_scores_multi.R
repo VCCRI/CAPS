@@ -31,8 +31,8 @@ df[is.na(df$type), ]$type <- "score"
 df <- pivot_wider(df, names_from = type, values_from = value)
 
 # Rename models
-if (!is.null(snakemake@params[["model_labels"]]) | !is.null(snakemake@params[["new_model_labels"]])) {
-  if (!is.null(snakemake@params[["model_labels"]]) & !is.null(snakemake@params[["new_model_labels"]])) {
+if (!is.null(snakemake@params[["model_labels"]]) || !is.null(snakemake@params[["new_model_labels"]])) {
+  if (!is.null(snakemake@params[["model_labels"]]) && !is.null(snakemake@params[["new_model_labels"]])) {
     df[["model"]] <- factor(df[["model"]],
       levels = snakemake@params[["model_labels"]],
       labels = snakemake@params[["new_model_labels"]]
@@ -44,8 +44,8 @@ if (!is.null(snakemake@params[["model_labels"]]) | !is.null(snakemake@params[["n
 
 # Rename and select a subset of variable values
 if (!is.null(snakemake@params[["xlab_labels_set"]])) df <- filter(df, variable_value %in% snakemake@params[["xlab_labels_set"]])
-if (!is.null(snakemake@params[["xlab_labels"]]) | !is.null(snakemake@params[["new_xlab_labels"]])) {
-  if (!is.null(snakemake@params[["xlab_labels"]]) & !is.null(snakemake@params[["new_xlab_labels"]])) {
+if (!is.null(snakemake@params[["xlab_labels"]]) || !is.null(snakemake@params[["new_xlab_labels"]])) {
+  if (!is.null(snakemake@params[["xlab_labels"]]) && !is.null(snakemake@params[["new_xlab_labels"]])) {
     df[["variable_value"]] <- factor(df[["variable_value"]],
       levels = snakemake@params[["xlab_labels"]],
       labels = snakemake@params[["new_xlab_labels"]]
@@ -69,6 +69,18 @@ ggplot(df) +
     ),
     size = 1.3, linewidth = 1.8, position = position_dodge(width = ifelse(is.null(snakemake@params[["dodge_width"]]), 0.65, snakemake@params[["dodge_width"]]))
   ) +
+  {
+    if (!is.null(snakemake@params[["ylim_min"]]) &&
+      !is.null(snakemake@params[["ylim_max"]])) {
+      ylim(
+        snakemake@params[["ylim_min"]],
+        snakemake@params[["ylim_max"]]
+      )
+    }
+  } +
+  {
+    if (!is.null(snakemake@params[["gnomAD_missense_level_genomes"]])) geom_hline(aes(yintercept = snakemake@params[["gnomAD_missense_level_genomes"]]), linetype = "dashed")
+  } +
   theme_classic() +
   theme(
     legend.position = "top",

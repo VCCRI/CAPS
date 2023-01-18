@@ -1,6 +1,8 @@
 library(dplyr)
 library(magrittr)
 
+set.seed(12345)
+
 get_CAPS <- function(dat, phat, confint_method) {
   # using Gaussian approximation of the binomial
   res <- dat %>%
@@ -98,20 +100,20 @@ if (!("phat" %in% colnames(exp_vars)) & snakemake@params[["phat_method"]] != "PD
   warning("Using proportions observed as best estimates of per-context probabilities (phat)")
 }
 
+if (snakemake@params[["phat_method"]] == "Var") exp_vars <- select(exp_vars, context, ref, alt, methylation_level, phat)
+
 df <- data.frame()
 for (v in na.omit(unique(vars[[snakemake@params[["variable"]]]]))) {
-  {
-    if (snakemake@params[["phat_method"]] == "Var") {
-      get_CAPS(filter(vars, .data[[snakemake@params[["variable"]]]] == v),
-        exp_vars,
-        confint_method = ifelse(is.null(snakemake@params[["confint_method"]]), "CAPS", snakemake@params[["confint_method"]])
-      )
-    } else if (snakemake@params[["phat_method"]] == "PDD") {
-      get_CAPS_pdd(filter(vars, .data[[snakemake@params[["variable"]]]] == v), exp_vars)
-    } else {
-      stop("Only 'Var' and 'PDD' methods are supported ('phat_method')")
-    }
-  } %>%
+  {    if (snakemake@params[["phat_method"]] == "Var") {
+    get_CAPS(filter(vars, .data[[snakemake@params[["variable"]]]] == v),
+      exp_vars,
+      confint_method = ifelse(is.null(snakemake@params[["confint_method"]]), "CAPS", snakemake@params[["confint_method"]])
+    )
+  } else if (snakemake@params[["phat_method"]] == "PDD") {
+    get_CAPS_pdd(filter(vars, .data[[snakemake@params[["variable"]]]] == v), exp_vars)
+  } else {
+    stop("Only 'Var' and 'PDD' methods are supported ('phat_method')")
+  }  } %>%
     mutate(variable_value = v) -> x
   df <- rbind(df, x)
 }

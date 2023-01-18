@@ -42,10 +42,6 @@ vars <- vars %>%
     maps_sem = sqrt(proportion_singletons * (1 - proportion_singletons) / variant_count),
     maps_lconf = maps - 1.96 * maps_sem,
     maps_uconf = maps + 1.96 * maps_sem
-  ) %>%
-  select(
-    -variant_count,
-    -singleton_count,
   ) -> maps_by_variable
 
 maps_by_variable %>%

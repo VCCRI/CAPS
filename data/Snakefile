@@ -6,9 +6,31 @@ GS = RemoteProvider(stay_on_remote=True)
 #                                  Main files                                 #
 ###############################################################################
 
-mutation_ht = GS.remote(config["gcp_rootdir"] + "mutation_ht.tsv")
-all_by_csq_genomes = GS.remote(config["gcp_rootdir"] + "by_csq_genomes.tsv")
+# Files for CAPS ##############################################################
 all_by_csq = GS.remote(config["gcp_rootdir"] + "by_csq.tsv")
+all_by_csq_genomes = GS.remote(config["gcp_rootdir"] + "by_csq_genomes.tsv")
+
+# Files for analysis ##########################################################
+# All QC-compliant synonymous variants, by LOEUF constraint level
+syn_constrained = GS.remote(config["gcp_rootdir"] + "syn_constrained.tsv")
+
+# Whiffin2020 #################################################################
+
+syn_by_context_Whiffin2020 = GS.remote(
+    config["gcp_rootdir"] + "syn_by_context_Whiffin2020.tsv"
+)
+intronic_by_context_Whiffin2020 = GS.remote(
+    config["gcp_rootdir"] + "intronic_by_context_Whiffin2020.tsv"
+)
+
+###############################################################################
+#                               Auxiliary files                               #
+###############################################################################
+
+# LoF metrics (including LOEUF) by gene
+lof_metrics_by_gene_file = GS.remote(config["gcp_rootdir"] + "lof_metrics_by_gene.txt")
+# Mutability table
+mutation_ht = GS.remote(config["gcp_rootdir"] + "mutation_ht.tsv")
 
 ###############################################################################
 
@@ -20,6 +42,10 @@ rule all:
         all_by_csq_genomes,
         # Exomes ##############################################################
         all_by_csq,
+        syn_constrained,
+        # Whiffin2020 #########################################################
+        intronic_by_context_Whiffin2020,
+        syn_by_context_Whiffin2020,
 
 
 rule mutation_ht:
@@ -94,6 +120,184 @@ rule all_by_csq_genomes:
         ).aggregate(
             variant_count=hl.agg.count(),
             singleton_count=hl.agg.count_where(variants.freq[0].AC == 1),
+        ).export(
+            output[0]
+        )
+
+
+# Constrained genes ###########################################################
+
+
+# TODO: fix
+rule download_LOEUF:
+    output:
+        lof_metrics_by_gene_file,
+    shell:
+        """
+        wget -O lof_metrics_by_gene.txt.bgz {config[lof_metrics_by_gene]}
+        gunzip -c lof_metrics_by_gene.txt.bgz > {output[0]}
+        """
+
+
+rule annotate_syn_constrained:
+    input:
+        lof_metrics_by_gene_file,
+    output:
+        syn_constrained,
+    run:
+        import hail as hl
+        from preprocessing import preprocessing
+
+        variants = preprocessing(
+            config["exomes_ht_path"],
+            config["context_ht_path"],
+            config["mutation_rates_ht_path"],
+            config["coverage_exomes_ht_path"],
+            {"female": config["female_exomes"], "male": config["male_exomes"]},
+        )
+
+        syn_vars = variants.filter(
+            (variants.worst_csq == "synonymous_variant")
+            & (variants.protein_coding == True)
+            & (variants.coverage >= 30)
+        )
+
+        syn_vars = syn_vars.annotate(
+            transcript_consequences=syn_vars.vep.transcript_consequences.find(
+                lambda x: (x.consequence_terms == ["synonymous_variant"])
+                & (x.biotype == "protein_coding")
+            )
+        )
+
+        all_genes = hl.import_table(input[0])
+
+        genes10 = all_genes.filter((all_genes.oe_lof_upper_bin == "0"))
+        genes10 = hl.set(genes10.gene.collect())
+
+        genes20 = all_genes.filter((all_genes.oe_lof_upper_bin == "1"))
+        genes20 = hl.set(genes20.gene.collect())
+
+        genes30 = all_genes.filter((all_genes.oe_lof_upper_bin == "2"))
+        genes30 = hl.set(genes30.gene.collect())
+
+        genes40 = all_genes.filter((all_genes.oe_lof_upper_bin == "3"))
+        genes40 = hl.set(genes40.gene.collect())
+
+        genes50 = all_genes.filter((all_genes.oe_lof_upper_bin == "4"))
+        genes50 = hl.set(genes50.gene.collect())
+
+        genes60 = all_genes.filter((all_genes.oe_lof_upper_bin == "5"))
+        genes60 = hl.set(genes60.gene.collect())
+
+        genes70 = all_genes.filter((all_genes.oe_lof_upper_bin == "6"))
+        genes70 = hl.set(genes70.gene.collect())
+
+        genes80 = all_genes.filter((all_genes.oe_lof_upper_bin == "7"))
+        genes80 = hl.set(genes80.gene.collect())
+
+        genes90 = all_genes.filter((all_genes.oe_lof_upper_bin == "8"))
+        genes90 = hl.set(genes90.gene.collect())
+
+        genes100 = all_genes.filter((all_genes.oe_lof_upper_bin == "9"))
+        genes100 = hl.set(genes100.gene.collect())
+
+        syn_vars = syn_vars.annotate(
+            loeuf=hl.case()
+            .when(genes10.contains(syn_vars.transcript_consequences.gene_symbol), 1)
+            .when(genes20.contains(syn_vars.transcript_consequences.gene_symbol), 2)
+            .when(genes30.contains(syn_vars.transcript_consequences.gene_symbol), 3)
+            .when(genes40.contains(syn_vars.transcript_consequences.gene_symbol), 4)
+            .when(genes50.contains(syn_vars.transcript_consequences.gene_symbol), 5)
+            .when(genes60.contains(syn_vars.transcript_consequences.gene_symbol), 6)
+            .when(genes70.contains(syn_vars.transcript_consequences.gene_symbol), 7)
+            .when(genes80.contains(syn_vars.transcript_consequences.gene_symbol), 8)
+            .when(genes90.contains(syn_vars.transcript_consequences.gene_symbol), 9)
+            .when(genes100.contains(syn_vars.transcript_consequences.gene_symbol), 10)
+            .or_missing()
+        )
+
+        syn_vars.group_by(
+            "context", "ref", "alt", "methylation_level", "mu", "loeuf"
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(syn_vars.freq[0].AC == 1),
+        ).export(
+            output[0]
+        )
+
+
+# Whiffin2020 #################################################################
+
+
+rule syn_by_context_Whiffin2020:
+    output:
+        syn_by_context_Whiffin2020,
+    run:
+        import hail as hl
+        from preprocessing import preprocessing
+
+        variants = preprocessing(
+            config["genomes_ht_path"],
+            config["context_ht_path"],
+            config["mutation_rates_ht_path"],
+            config["coverage_genomes_ht_path"],
+            {"female": config["female_genomes"], "male": config["male_genomes"]},
+        )
+
+        syn_vars = variants.filter(
+            (variants.worst_csq == "synonymous_variant")
+            & (variants.coverage > 15)
+            & (variants.coverage < 60)
+            & (variants.locus.contig != "X")
+            & (variants.locus.contig != "Y")
+        )
+
+        syn_vars.group_by(
+            "context",
+            "ref",
+            "alt",
+            "mu",
+            "methylation_level",
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(syn_vars.freq[0].AC == 1),
+        ).export(
+            output[0]
+        )
+
+
+rule intronic_by_context_Whiffin2020:
+    output:
+        intronic_by_context_Whiffin2020,
+    run:
+        import hail as hl
+        from preprocessing import preprocessing
+
+        variants = preprocessing(
+            config["genomes_ht_path"],
+            config["context_ht_path"],
+            config["mutation_rates_ht_path"],
+            config["coverage_genomes_ht_path"],
+            {"female": config["female_genomes"], "male": config["male_genomes"]},
+        )
+
+        intron_vars = variants.filter(
+            (variants.worst_csq == "intron_variant")
+            & (variants.coverage > 15)
+            & (variants.coverage < 60)
+            & (variants.locus.contig != "X")
+            & (variants.locus.contig != "Y")
+        )
+
+        intron_vars.group_by(
+            "context",
+            "ref",
+            "alt",
+            "mu",
+            "methylation_level",
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(intron_vars.freq[0].AC == 1),
         ).export(
             output[0]
         )

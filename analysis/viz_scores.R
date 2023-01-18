@@ -11,8 +11,8 @@ scores <- read.table(snakemake@input[["scores"]],
 
 if (!is.null(snakemake@params[["xlab_labels_set"]])) scores <- filter(scores, variable_value %in% snakemake@params[["xlab_labels_set"]])
 
-if (!is.null(snakemake@params[["xlab_labels"]]) | !is.null(snakemake@params[["new_xlab_labels"]])) {
-  if (!is.null(snakemake@params[["xlab_labels"]]) & !is.null(snakemake@params[["new_xlab_labels"]])) {
+if (!is.null(snakemake@params[["xlab_labels"]]) || !is.null(snakemake@params[["new_xlab_labels"]])) {
+  if (!is.null(snakemake@params[["xlab_labels"]]) && !is.null(snakemake@params[["new_xlab_labels"]])) {
     scores[["variable_value"]] <- factor(scores[["variable_value"]],
       levels = snakemake@params[["xlab_labels"]],
       labels = snakemake@params[["new_xlab_labels"]]
@@ -45,7 +45,7 @@ ggplot(scores) +
     size = 1.3, linewidth = 1.8
   ) +
   {
-    if (!is.null(snakemake@params[["ylim_min"]]) &
+    if (!is.null(snakemake@params[["ylim_min"]]) &&
       !is.null(snakemake@params[["ylim_max"]])) {
       ylim(
         snakemake@params[["ylim_min"]],
@@ -55,6 +55,7 @@ ggplot(scores) +
   } +
   theme_classic() +
   theme(
+    aspect.ratio = ifelse(!is.null(snakemake@params[["aspect_ratio"]]), snakemake@params[["aspect_ratio"]], 1),
     legend.direction = "horizontal",
     text = element_text(size = 24),
     axis.text.x = element_text(
