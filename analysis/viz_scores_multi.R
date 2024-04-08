@@ -20,12 +20,12 @@ if (length(unique(unlist(lapply(dfs, function(df) {
 
 dfs %>%
   Reduce((function(df1, df2) inner_join(df1, df2, by = "variable_value")), .) %>%
-  select(variable_value, (starts_with("caps") | starts_with("maps")) & !ends_with("_se") & !ends_with("_sem")) %>%
+  mutate(variable_value = as.factor(variable_value)) %>%
+  select(variable_value, (starts_with("maps") | starts_with("traps") | starts_with("caps")) & !ends_with("_se") & !ends_with("_sem")) %>%
   melt() %>%
   rowwise() %>%
   mutate(model = unlist(stringr::str_split(variable, "_[lu]conf"))[1], type = stringr::str_extract(variable, "[lu]conf")) %>%
   select(-variable) -> df
-
 df[is.na(df$type), ]$type <- "score"
 
 df <- pivot_wider(df, names_from = type, values_from = value)
@@ -55,6 +55,11 @@ if (!is.null(snakemake@params[["xlab_labels"]]) || !is.null(snakemake@params[["n
   }
 }
 
+# TODO: make this filtering specific: df[!is.na(...),]
+if (!is.null(snakemake@params[["NA_omit"]]) && snakemake@params[["NA_omit"]]) {
+  df <- na.omit(df)
+}
+
 pdf(snakemake@output[["plot"]])
 ggplot(df) +
   aes(
@@ -67,7 +72,10 @@ ggplot(df) +
       ymin = lconf,
       ymax = uconf
     ),
-    size = 1.3, linewidth = 1.8, position = position_dodge(width = ifelse(is.null(snakemake@params[["dodge_width"]]), 0.65, snakemake@params[["dodge_width"]]))
+    linewidth = 1.8,
+    alpha = ifelse(is.null(snakemake@params[["point_alpha"]]), 1, snakemake@params[["point_alpha"]]),
+    size = ifelse(is.null(snakemake@params[["point_size"]]), 1.3, snakemake@params[["point_size"]]),
+    position = position_dodge(width = ifelse(is.null(snakemake@params[["dodge_width"]]), 0.65, snakemake@params[["dodge_width"]]))
   ) +
   {
     if (!is.null(snakemake@params[["ylim_min"]]) &&
@@ -83,14 +91,15 @@ ggplot(df) +
   } +
   theme_classic() +
   theme(
+    aspect.ratio = ifelse(!is.null(snakemake@params[["aspect_ratio"]]), snakemake@params[["aspect_ratio"]], 0.5),
     legend.position = "top",
     axis.text.x = element_text(
+      size = ifelse(is.null(snakemake@params[["xlab_size"]]), 24, snakemake@params[["xlab_size"]]),
       vjust = snakemake@params[["xlab_vjust"]],
       hjust = snakemake@params[["xlab_hjust"]],
       angle = ifelse(is.null(snakemake@params[["xlab_angle"]]), 0, snakemake@params[["xlab_angle"]])
     ),
-    text = element_text(size = 24),
-    plot.margin = margin(0, 5.5, 0, 5.5)
+    text = element_text(size = ifelse(is.null(snakemake@params[["text_size"]]), 24, snakemake@params[["text_size"]]))
   ) +
   scale_color_manual(snakemake@params[["legend_title"]],
     values = snakemake@params[["colors"]]

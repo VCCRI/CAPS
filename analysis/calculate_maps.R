@@ -44,7 +44,13 @@ vars <- vars %>%
     maps_uconf = maps + 1.96 * maps_sem
   ) -> maps_by_variable
 
-maps_by_variable %>%
+maps_by_variable <- maps_by_variable %>%
   mutate(variable = rep(names(maps_by_variable[, 1]), dim(maps_by_variable)[1])) %>%
-  rename("variable_value" = snakemake@params[["extra"]]) %>%
-  write.table(snakemake@output[["scores"]], sep = "\t", quote = FALSE, row.names = FALSE)
+  rename("variable_value" = snakemake@params[["extra"]])
+
+if (!is.null(snakemake@params[["old_cols"]]) && !is.null(snakemake@params[["new_cols"]])) {
+  names(maps_by_variable)[match(snakemake@params[["old_cols"]], names(maps_by_variable))] <- snakemake@params[["new_cols"]]
+}
+
+
+write.table(maps_by_variable, snakemake@output[["scores"]], sep = "\t", quote = FALSE, row.names = FALSE)

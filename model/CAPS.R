@@ -43,7 +43,7 @@ print(get_CAPS(mis_dat, phat))
 
 # calculate the CI on CAPS using simulated
 # posterior predictive distribution
-get_CAPS_pdd <- function (dat, phat_sim, bPDD = FALSE) {
+get_CAPS_ppd <- function (dat, phat_sim, bPPD = FALSE) {
 # dat: data of counts of singletons per context for the class of variants of interest
 #       should have colums context, alt, methylation_level, singleton_count, variant_count
 # phat_sim: posterior predictive distributions of expected prop. sing. per context
@@ -51,7 +51,7 @@ get_CAPS_pdd <- function (dat, phat_sim, bPDD = FALSE) {
     # number of simulations
     N <- nrow(phat_sim)
 
-    # add context string to match context with PDD matrix
+    # add context string to match context with PPD matrix
     dat$colname <- paste(dat$context, ".", dat$alt, dat$methylation_level, sep = "")
 
     # simulate expected counts. Could be done in one matrix operation,
@@ -75,8 +75,8 @@ get_CAPS_pdd <- function (dat, phat_sim, bPDD = FALSE) {
     obs_count <- dat %>% summarise(
         observed = sum(singleton_count),
         variant_count = sum(variant_count))
-            
-    # get PDD of observed prop. of sing.
+
+    # get PPD of observed prop. of sing.
     pobs_sim <- rbeta(N, obs_count$observed + 1, obs_count$variant_count - obs_count$observed + 1)
 
     # binomial simulation
@@ -85,8 +85,8 @@ get_CAPS_pdd <- function (dat, phat_sim, bPDD = FALSE) {
     # CAPS
     caps_sim <- obs_ps_sim - exp_ps_sim
 
-    # return summary or whole PDD
-    if (bPDD)
+    # return summary or whole PPD
+    if (bPPD)
         caps_sim
     else
        c(CAPS = mean(caps_sim), CAPS_se = sd(caps_sim), quantile(caps_sim, probs = c(0.025, 0.975)))
@@ -97,11 +97,11 @@ phat_sim <- read.delim("model/phat_sim.tsv")
 
 # synonymous
 print(get_CAPS(dat, phat))
-print(get_CAPS_pdd(dat, phat_sim))
+print(get_CAPS_ppd(dat, phat_sim))
 
 # missense
 print(get_CAPS(mis_dat, phat))
-print(get_CAPS_pdd(mis_dat, phat_sim))
+print(get_CAPS_ppd(mis_dat, phat_sim))
 
 # load new file provided by Mikhail with all consequences
 all_csq <- read_tsv("files/by_csq.tsv")
@@ -109,4 +109,4 @@ stop_gained_dat <- all_csq %>% filter(worst_csq == 'stop_gained')
 
 # stop gain
 print(get_CAPS(stop_gained_dat, phat))
-print(get_CAPS_pdd(stop_gained_dat, phat_sim))
+print(get_CAPS_ppd(stop_gained_dat, phat_sim))

@@ -67,7 +67,7 @@ filter(df, model != snakemake@params[["new_model_labels"]][1]) %>%
   select(variable_value, model, perc_increase) %>%
   arrange(variable_value, model) %>%
   rename(`Subset` = variable_value, `Model` = model, `CI increase` = perc_increase) %>%
-  na.omit() %>%
+  na.omit() %>% #TODO: make this filtering specific: df[!is.na(...),]
   xtable(
     caption = snakemake@params[["caption"]], label = snakemake@params[["label"]],
     align = "lll|r", display = c("s", "s", "s", "s")

@@ -13,8 +13,9 @@
 
 ## The "Analysis" pipeline
 
-`analysis/` contains scripts that calculate and visualise CAPS scores using data from files created in `data/`.
+`analysis/` contains scripts that calculate and visualise CAPS scores using files created in `data/`.
 
 ### How to run
 
-Run with `snakemake --cores all --config gcp_rootdir="<bucket_name>/some_directory/" gcp_username="<user_name>" `.
+1. Navigate to `CAPS/analysis/`
+2. `snakemake --cores all --config gcp="False"` (faster: uses copies from `files/`) or `snakemake --cores all --config gcp="True" gcp_rootdir="<bucket_name>/some_directory/"` (slower: uses GS files)

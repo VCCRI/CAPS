@@ -1,23 +1,19 @@
-from snakemake.remote.GS import RemoteProvider
-
-GS = RemoteProvider()
-
 caps_model = "../model/greta_model.R"
-filter_by_worst_csq = "filter_by_worst_csq.R"
 calculate_caps = "calculate_caps.R"
 calculate_maps = "calculate_maps.R"
 compare_scores = "compare_scores.R"
 viz_scores = "viz_scores.R"
 counts = "counts.R"
-process_by_csq = "process_by_csq.R"
+contexts = "contexts.R"
+filtering = "filtering.R"
 join_groups = "join_groups.R"
 viz_scores_multi = "viz_scores_multi.R"
 annotate_with_mutability_bands = "annotate_with_mutability_bands.R"
 Whiffin2020_uORFs_preprocessing = "Whiffin2020_uORFs_preprocessing.R"
 
 colors2 = ["#999899", "#B11116"]
-colors3 = ["#F04B5D", "#B11116", "#999899"]
-reds = ["#B11116", "#EF4640", "#F04B5D"]
+colors3 = ["#999899", "#B11116", "#F04B5D"]
+reds = ["#B11116", "#EF4640", "#F04B5D"]  # TODO: fix, too similar
 greys = ["#56565A", "#999899", "#BDBBBB", "#D8D1CA", "#CDC3BB"]
 
 
@@ -26,25 +22,56 @@ greys = ["#56565A", "#999899", "#BDBBBB", "#D8D1CA", "#CDC3BB"]
 ###############################################################################
 
 # General #####################################################################
-# All variants grouped by their most severe consequence
-by_csq_unprocessed = GS.remote(config["gcp_rootdir"] + "by_csq.tsv")
+if config["gcp"] == False:
+    # Synonymous variants grouped by LOEUF bin
+    syn_constrained = "../files/syn_constrained.tsv"
+    # Mutability table
+    mutation_ht = "../files/mutation_ht.tsv"
+    # All variants grouped by their most severe consequence
+    by_csq_unprocessed = "../files/by_csq.tsv"
+    # All variants grouped by their most severe consequence (genomes)
+    by_csq_genomes_unprocessed = "../files/by_csq_genomes.tsv"
+    # Near-splice variants
+    near_splice_vars_unprocessed = "../files/near_splice_vars.tsv"
+    near_splice_vars_genomes_unprocessed = "../files/near_splice_vars_genomes.tsv"
+    # Whiffin2020
+    syn_by_context_Whiffin2020 = "../files/syn_by_context_Whiffin2020.tsv"
+    intronic_by_context_Whiffin2020 = "../files/intronic_by_context_Whiffin2020.tsv"
+else:
+    from snakemake.remote.GS import RemoteProvider
+
+    GS = RemoteProvider()
+    # Synonymous variants grouped by LOEUF bin
+    syn_constrained = GS.remote(config["gcp_rootdir"] + "syn_constrained.tsv")
+    # Mutability table
+    mutation_ht = GS.remote(config["gcp_rootdir"] + "mutation_ht.tsv")
+    # All variants grouped by their most severe consequence
+    by_csq_unprocessed = GS.remote(config["gcp_rootdir"] + "by_csq.tsv")
+    # All variants grouped by their most severe consequence (genomes)
+    by_csq_genomes_unprocessed = GS.remote(config["gcp_rootdir"] + "by_csq_genomes.tsv")
+    # Near-splice variants
+    near_splice_vars_unprocessed = GS.remote(
+        config["gcp_rootdir"] + "near_splice_vars.tsv"
+    )
+    near_splice_vars_genomes_unprocessed = GS.remote(
+        config["gcp_rootdir"] + "near_splice_vars_genomes.tsv"
+    )
+    # Whiffin2020
+    syn_by_context_Whiffin2020 = GS.remote(
+        config["gcp_rootdir"] + "syn_by_context_Whiffin2020.tsv"
+    )
+    intronic_by_context_Whiffin2020 = GS.remote(
+        config["gcp_rootdir"] + "intronic_by_context_Whiffin2020.tsv"
+    )
+
 by_csq = "by_csq.tsv"
-# All variants grouped by their most severe consequence (genomes)
-by_csq_genomes_unprocessed = GS.remote(config["gcp_rootdir"] + "by_csq_genomes.tsv")
 by_csq_genomes = "by_csq_genomes.tsv"
-# All variants grouped by LOEUF bin
-all_constrained = GS.remote(config["gcp_rootdir"] + "all_constrained.tsv")
-# Synonymous variants grouped by LOEUF bin
-syn_constrained = GS.remote(config["gcp_rootdir"] + "syn_constrained.tsv")
-# Mutability table
-mutation_ht = GS.remote(config["gcp_rootdir"] + "mutation_ht.tsv")
-# Whiffin2020 #################################################################
-syn_by_context_Whiffin2020 = GS.remote(
-    config["gcp_rootdir"] + "syn_by_context_Whiffin2020.tsv"
-)
-intronic_by_context_Whiffin2020 = GS.remote(
-    config["gcp_rootdir"] + "intronic_by_context_Whiffin2020.tsv"
-)
+
+near_acceptor_vars = "near_acceptor_vars.tsv"
+near_acceptor_genomes_vars = "near_acceptor_genomes_vars.tsv"
+near_donor_vars = "near_donor_vars.tsv"
+near_donor_genomes_vars = "near_donor_genomes_vars.tsv"
+
 Whiffin2020_stop_unprocessed = (
     "uORFs/data_files/stop-removing_all_possible_annotated.txt"
 )
@@ -55,13 +82,13 @@ Whiffin2020_uAUG_unprocessed = (
 # Model #######################################################################
 # Synonymous variants with 4 missing contexts added
 syn_by_context_p4 = "../model/phat.tsv"
-syn_by_context_pdd = "../model/phat_sim.tsv"
+syn_by_context_ppd = "../model/phat_sim.tsv"
 # Synonymous variants with 4 missing contexts added (genomes)
 syn_by_context_p4_genomes = "../model/phat_genomes.tsv"
-syn_by_context_pdd_genomes = "../model/phat_sim_genomes.tsv"
+syn_by_context_ppd_genomes = "../model/phat_sim_genomes.tsv"
 # Synonymous variants with 4 missing contexts added (Whiffin2020 QC)
 syn_by_context_p4_Whiffin2020 = "../model/phat_Whiffin2020.tsv"
-syn_by_context_pdd_Whiffin2020 = "../model/phat_sim_Whiffin2020.tsv"
+syn_by_context_ppd_Whiffin2020 = "../model/phat_sim_Whiffin2020.tsv"
 
 ###############################################################################
 #                               Auxiliary files                               #
@@ -76,12 +103,17 @@ intronic_by_context = "intronic_by_context.tsv"
 syn_by_context_genomes = "syn_by_context_genomes.tsv"
 # Intronic variants grouped by context/mutability (genomes)
 intronic_by_context_genomes = "intronic_by_context_genomes.tsv"
+# CAPS scores for near-splice variants
+caps_near_acceptor_scores = "near_acceptor_caps.tsv"
+caps_near_acceptor_genomes_scores = "near_acceptor_genomes_caps.tsv"
+caps_near_donor_scores = "near_donor_caps.tsv"
+caps_near_donor_genomes_scores = "near_donor_genomes_caps.tsv"
 # CAPS scores for all major functional classes of SNVs
 caps_by_csq_scores = "all_csq_caps.tsv"
 caps_by_csq_genomes_scores = "all_csq_genomes_caps.tsv"
-# CAPS-PDD scores for all major functional classes of SNVs
-caps_pdd_by_csq_scores = "all_csq_caps_pdd.tsv"
-caps_pdd_by_csq_genomes_scores = "all_csq_genomes_caps_pdd.tsv"
+# CAPS-PPD scores for all major functional classes of SNVs
+caps_ppd_by_csq_scores = "all_csq_caps_ppd.tsv"
+caps_ppd_by_csq_genomes_scores = "all_csq_genomes_caps_ppd.tsv"
 # Synonymous variants annotated with mutability bands
 syn_w_mutability_bands = "syn_w_mutability_bands.tsv"
 # All variants annotated with mutability bands
@@ -96,17 +128,19 @@ all_vars_maps_by_mutability_band_scores = "all_mutband_maps.tsv"
 all_vars_sqrt_by_mutability_band_scores = "all_mutband_sqrt.tsv"
 # All variant by mutability band (CAPS score)
 all_vars_caps_by_mutability_band_scores = "all_mutband_caps.tsv"
+# Near-splice variants (MAPS score)
+maps_near_acceptor_scores = "near_acceptor_maps.tsv"
+maps_near_acceptor_genomes_scores = "near_acceptor_genomes_maps.tsv"
+maps_near_donor_scores = "near_donor_maps.tsv"
+maps_near_donor_genomes_scores = "near_donor_genomes_maps.tsv"
 # All variants by most severe consequences (MAPS score)
 maps_by_csq_scores = "all_csq_maps.tsv"
 maps_by_csq_genomes_scores = "all_csq_genomes_maps.tsv"
-# All variants by Top % LOEUF group
-all_constrained_joined_groups = "all_constrained_joined_groups.tsv"
 # Synonymous variants by Top % LOEUF group
 syn_constrained_joined_groups = "syn_constrained_joined_groups.tsv"
-# All variants by Top % LOEUF group (CAPS score)
-all_constrained_tops_scores = "all_constrained_caps.tsv"
-# Synonymous variants by Top % LOEUF group (CAPS score)
-syn_constrained_tops_scores = "syn_constrained_caps.tsv"
+# Synonymous variants by Top % LOEUF group
+syn_constrained_tops_caps_scores = "syn_constrained_caps.tsv"
+syn_constrained_tops_maps_scores = "syn_constrained_maps.tsv"
 # Model #######################################################################
 theta_sample = "../model/theta_sample.tsv"
 theta_sample_genomes = "../model/theta_sample_genomes.tsv"
@@ -153,6 +187,15 @@ Whiffin2020_uORFs_distanceCDS_uAUG_caps_scores = (
 counts_by_csq = "all_csq_counts.tex"
 # Counts by variant class (genomes)
 counts_by_csq_genomes = "all_csq_counts_genomes.tex"
+# Contexts by variant class
+contexts_by_csq = "all_csq_contexts.tex"
+# Contexts by variant class (genomes)
+contexts_by_csq_genomes = "all_csq_contexts_genomes.tex"
+# CAPS and MAPS scores for near-splice variants
+scores2_near_acceptor_plot = "near_acceptor_scores2.pdf"
+scores2_near_donor_plot = "near_donor_scores2.pdf"
+scores2_near_acceptor_genomes_plot = "near_acceptor_genomes_scores2.pdf"
+scores2_near_donor_genomes_plot = "near_donor_genomes_scores2.pdf"
 # CAPS and MAPS scores for all major functional classes of SNVs
 scores2_by_csq_plot = "all_csq_scores2.pdf"
 scores2_by_csq_genomes_plot = "all_csq_scores2_genomes.pdf"
@@ -160,8 +203,8 @@ scores3_by_csq_plot = "all_csq_scores3.pdf"
 scores3_by_csq_genomes_plot = "all_csq_scores3_genomes.pdf"
 # Plot of CAPS scores for all major functional classes of SNVs
 caps_by_csq_plot = "all_csq_caps.pdf"
-# CAPS-PDD scores for all major functional classes of SNVs
-caps_pdd_by_csq_plot = "all_csq_caps_pdd.pdf"
+# CAPS-PPD scores for all major functional classes of SNVs
+caps_ppd_by_csq_plot = "all_csq_caps_ppd.pdf"
 # Synonymous variants by mutability band (CAPS score)
 syn_vars_caps_by_mutability_band_plot = "syn_mutband_caps.pdf"
 # Synonymous variants by mutability band (MAPS score)
@@ -178,10 +221,9 @@ all_vars_scores2_by_mutability_band_plot = "all_mutband_scores2.pdf"
 maps_by_csq_plot = "all_csq_maps.pdf"
 # Table summarising the difference in scores of the 3 models
 scores3_by_csq_scores_comparison = "scores3_by_csq_scores_comparison.tex"
-# All variants by Top % LOEUF group
-all_constrained_plot = "all_constrained_caps.pdf"
 # Synonymous variants by Top % LOEUF group
-syn_constrained_plot = "syn_constrained_caps.pdf"
+syn_constrained_caps_plot = "syn_constrained_caps.pdf"
+syn_constrained_scores2_plot = "syn_constrained_scores2.pdf"
 # Whiffin2020 #################################################################
 Whiffin2020_uORFs_effects_uAUG_plot = "Whiffin2020_uORFs_effects_uAUG.pdf"
 Whiffin2020_uORFs_effects_stop_plot = "Whiffin2020_uORFs_effects_stop.pdf"
@@ -195,13 +237,24 @@ rule all:
         # Misc files ##########################################################
         counts_by_csq,
         counts_by_csq_genomes,
+        contexts_by_csq,
+        contexts_by_csq_genomes,
         # Plots ###############################################################
+        caps_by_csq_plot,
         all_vars_scores2_by_mutability_band_plot,
+        all_vars_maps_by_mutability_band_plot,
+        all_vars_sqrt_by_mutability_band_plot,
+        all_vars_caps_by_mutability_band_plot,
+        scores2_near_acceptor_plot,
+        scores2_near_donor_plot,
+        scores2_near_acceptor_genomes_plot,
+        scores2_near_donor_genomes_plot,
         scores2_by_csq_plot,
-        scores2_by_csq_genomes_plot,
         scores3_by_csq_plot,
         scores3_by_csq_genomes_plot,
-        syn_constrained_plot,
+        scores2_by_csq_genomes_plot,
+        syn_constrained_caps_plot,
+        syn_constrained_scores2_plot,
         Whiffin2020_uORFs_kozak_uAUG_plot,
         Whiffin2020_uORFs_distanceCDS_uAUG_plot,
         Whiffin2020_uORFs_kozak_stop_plot,
@@ -211,72 +264,133 @@ rule all:
         scores3_by_csq_scores_comparison,
 
 
-###############################################################################
+# QC ##########################################################################
 
 
-rule process_by_csq:
+rule process_by_csq_variants:
     input:
-        by_csq_unprocessed=by_csq_unprocessed,
+        In=by_csq_unprocessed,
     output:
-        by_csq_processed=by_csq,
+        Out=by_csq,
+    params:
+        min_coverage=30,
+        protein_coding=True,
+        add_essential_splice_cat=True,
     script:
-        process_by_csq
+        filtering
 
 
-rule process_by_csq_genomes:
+rule process_by_csq_variants_genomes:
     input:
-        by_csq_unprocessed=by_csq_genomes_unprocessed,
+        In=by_csq_genomes_unprocessed,
     output:
-        by_csq_processed=by_csq_genomes,
+        Out=by_csq_genomes,
+    params:
+        min_coverage=30,
+        # NOTE: the condition below toggles the "intergenic" category
+        protein_coding=False,
+        add_essential_splice_cat=True,
     script:
-        process_by_csq
+        filtering
+
+
+rule get_near_acceptor_variants:
+    input:
+        In=near_splice_vars_unprocessed,
+    output:
+        Out=near_acceptor_vars,
+    params:
+        min_coverage=30,
+        variable="splice_type",
+        variable_value="splice_acceptor_variant",
+    script:
+        filtering
+
+
+rule get_near_acceptor_variants_genomes:
+    input:
+        In=near_splice_vars_genomes_unprocessed,
+    output:
+        Out=near_acceptor_genomes_vars,
+    params:
+        min_coverage=30,
+        variable="splice_type",
+        variable_value="splice_acceptor_variant",
+    script:
+        filtering
+
+
+rule get_near_donor_variants:
+    input:
+        In=near_splice_vars_unprocessed,
+    output:
+        Out=near_donor_vars,
+    params:
+        min_coverage=30,
+        variable="splice_type",
+        variable_value="splice_donor_variant",
+    script:
+        filtering
+
+
+rule get_near_donor_variants_genomes:
+    input:
+        In=near_splice_vars_genomes_unprocessed,
+    output:
+        Out=near_donor_genomes_vars,
+    params:
+        min_coverage=30,
+        variable="splice_type",
+        variable_value="splice_donor_variant",
+    script:
+        filtering
 
 
 ###############################################################################
 #                                  CAPS model                                 #
 ###############################################################################
 
-
-rule caps_model:
-    input:
-        syn_vars=syn_by_context,
-        intron_vars=intronic_by_context,
-    output:
-        phat=syn_by_context_p4,
-        phat_sim=syn_by_context_pdd,
-        theta_sample=theta_sample,
-    resources:
-        mem_mb=3072,
-    script:
-        caps_model
-
-
-rule caps_model_genomes:
-    input:
-        syn_vars=syn_by_context_genomes,
-        intron_vars=intronic_by_context_genomes,
-    output:
-        phat=syn_by_context_p4_genomes,
-        phat_sim=syn_by_context_pdd_genomes,
-        theta_sample=theta_sample_genomes,
-    resources:
-        mem_mb=3072,
-    script:
-        caps_model
-
-
-rule caps_model_Whiffin2020:
-    input:
-        syn_vars=syn_by_context_Whiffin2020,
-        intron_vars=intronic_by_context_Whiffin2020,
-    output:
-        phat=syn_by_context_p4_Whiffin2020,
-        phat_sim=syn_by_context_pdd_Whiffin2020,
-        theta_sample=theta_sample_Whiffin2020,
-    resources:
-        mem_mb=3072,
-    script:
-        caps_model
+# TODO: uncomment
+# rule caps_model:
+#     input:
+#         syn_vars=syn_by_context,
+#         intron_vars=intronic_by_context,
+#     output:
+#         phat=syn_by_context_p4,
+#         phat_sim=syn_by_context_ppd,
+#         theta_sample=theta_sample,
+#     resources:
+#         mem_mb=3072,
+#     script:
+#         caps_model
+#
+#
+# rule caps_model_genomes:
+#     input:
+#         syn_vars=syn_by_context_genomes,
+#         intron_vars=intronic_by_context_genomes,
+#     output:
+#         phat=syn_by_context_p4_genomes,
+#         phat_sim=syn_by_context_ppd_genomes,
+#         theta_sample=theta_sample_genomes,
+#     resources:
+#         mem_mb=3072,
+#     script:
+#         caps_model
+#
+#
+# rule caps_model_Whiffin2020:
+#     input:
+#         syn_vars=syn_by_context_Whiffin2020,
+#         intron_vars=intronic_by_context_Whiffin2020,
+#     output:
+#         phat=syn_by_context_p4_Whiffin2020,
+#         phat_sim=syn_by_context_ppd_Whiffin2020,
+#         theta_sample=theta_sample_Whiffin2020,
+#     resources:
+#         mem_mb=3072,
+#     script:
+#         caps_model
 
 
 ###############################################################################
@@ -288,9 +402,10 @@ rule syn_by_context:
     output:
         Out=syn_by_context,
     params:
-        worst_csq="synonymous_variant",
+        variable="worst_csq",
+        variable_value="synonymous_variant",
     script:
-        filter_by_worst_csq
+        filtering
 
 
 rule syn_by_context_genomes:
@@ -299,9 +414,10 @@ rule syn_by_context_genomes:
     output:
         Out=syn_by_context_genomes,
     params:
-        worst_csq="synonymous_variant",
+        variable="worst_csq",
+        variable_value="synonymous_variant",
     script:
-        filter_by_worst_csq
+        filtering
 
 
 rule intronic_by_context:
@@ -310,9 +426,10 @@ rule intronic_by_context:
     output:
         Out=intronic_by_context,
     params:
-        worst_csq="intron_variant",
+        variable="worst_csq",
+        variable_value="intron_variant",
     script:
-        filter_by_worst_csq
+        filtering
 
 
 rule intronic_by_context_genomes:
@@ -321,9 +438,10 @@ rule intronic_by_context_genomes:
     output:
         Out=intronic_by_context_genomes,
     params:
-        worst_csq="intron_variant",
+        variable="worst_csq",
+        variable_value="intron_variant",
     script:
-        filter_by_worst_csq
+        filtering
 
 
 ###############################################################################
@@ -340,6 +458,10 @@ rule all_vars_scores2_by_mutability_band_plot:
         new_xlab_labels=["Highest", "High", "Low", "Lowest"],
         model_labels=["maps", "caps"],
         new_model_labels=["MAPS", "CAPS"],
+        aspect_ratio=0.7,
+        text_size=20,
+        xlab_size=20,
+        point_size=1,
         colors=colors2,
         legend_title="",
         xlab="Mutability band",
@@ -387,9 +509,13 @@ rule scores2_by_csq_plot:
         model_labels=["maps", "caps"],
         new_model_labels=["MAPS", "CAPS"],
         colors=colors2,
+        aspect_ratio=0.9,
+        text_size=22,
+        xlab_size=20,
+        point_size=1,
         xlab="",
         ylab="Selection score",
-        xlab_angle=45,
+        xlab_angle=30,
         xlab_hjust=1,
         xlab_vjust=1,
         legend_title="",
@@ -438,7 +564,11 @@ rule scores2_by_csq_genomes_plot:
         colors=colors2,
         xlab="",
         ylab="Selection score",
-        xlab_angle=45,
+        aspect_ratio=0.9,  #aspect_ratio=0.2,
+        text_size=22,  #text_size=15,
+        xlab_size=20,  #xlab_size=15,
+        point_size=1,  #point_size=0.5
+        xlab_angle=30,
         xlab_hjust=1,
         xlab_vjust=1,
         legend_title="",
@@ -450,7 +580,7 @@ rule scores2_by_csq_genomes_plot:
 
 rule scores3_by_csq_plot:
     input:
-        scores=[caps_pdd_by_csq_scores, caps_by_csq_scores, maps_by_csq_scores],
+        scores=[caps_ppd_by_csq_scores, caps_by_csq_scores, maps_by_csq_scores],
     params:
         xlab_labels_set=[
             "intron_variant",
@@ -479,13 +609,17 @@ rule scores3_by_csq_plot:
             "Essential splice",
             "Nonsense",
         ],
-        model_labels=["caps_pdd", "caps", "maps"],
-        new_model_labels=["CAPS-PDD", "CAPS", "MAPS"],
-        dodge_width=0.95,
+        model_labels=["maps", "caps", "caps_ppd"],
+        new_model_labels=["MAPS", "CAPS", "CAPS-PPD"],
+        text_size=15,
+        xlab_size=15,
+        point_size=1,
+        aspect_ratio=0.6,
+        dodge_width=0.8,
         colors=colors3,
         xlab="",
         ylab="Selection score",
-        xlab_angle=45,
+        xlab_angle=20,
         xlab_hjust=1,
         xlab_vjust=1,
         legend_title="",
@@ -498,7 +632,7 @@ rule scores3_by_csq_plot:
 rule scores3_by_csq_genomes_plot:
     input:
         scores=[
-            caps_pdd_by_csq_genomes_scores,
+            caps_ppd_by_csq_genomes_scores,
             caps_by_csq_genomes_scores,
             maps_by_csq_genomes_scores,
         ],
@@ -533,8 +667,8 @@ rule scores3_by_csq_genomes_plot:
             "Essential splice",
             "Nonsense",
         ],
-        model_labels=["caps_pdd", "caps", "maps"],
-        new_model_labels=["CAPS-PDD", "CAPS", "MAPS"],
+        model_labels=["caps_ppd", "caps", "maps"],
+        new_model_labels=["CAPS-PPD", "CAPS", "MAPS"],
         dodge_width=0.95,
         colors=colors3,
         xlab="",
@@ -549,9 +683,361 @@ rule scores3_by_csq_genomes_plot:
         viz_scores_multi
 
 
+rule scores2_near_acceptor_plot:
+    input:
+        scores=[caps_near_acceptor_scores, maps_near_acceptor_scores],
+    params:
+        model_labels=["maps", "caps"],
+        new_model_labels=["MAPS", "CAPS"],
+        colors=colors2,
+        ylab="Selection score",
+        NA_omit=True,
+        point_size=0.6,
+        point_alpha=0.7,
+        dodge_width=1,
+        ylim_min=-0.08,
+        ylim_max=0.18,
+        xlab_angle=90,
+        xlab_hjust=1,
+        xlab_vjust=0.5,
+        legend_title="",
+        xlab_size=14,
+        aspect_ratio=0.3,
+        xlab="Position relative to exon boundary",
+        xlab_labels=[
+            -24,
+            -23,
+            -22,
+            -21,
+            -20,
+            -19,
+            -18,
+            -17,
+            -16,
+            -15,
+            -14,
+            -13,
+            -12,
+            -11,
+            -10,
+            -9,
+            -8,
+            -7,
+            -6,
+            -5,
+            -4,
+            -3,
+            -2,
+            -1,
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+        ],
+        new_xlab_labels=[
+            "-25",
+            "-24",
+            "-23",
+            "-22",
+            "-21",
+            "-20",
+            "-19",
+            "-18",
+            "-17",
+            "-16",
+            "-15",
+            "-14",
+            "-13",
+            "-12",
+            "-11",
+            "-10",
+            "-9",
+            "-8",
+            "-7",
+            "-6",
+            "-5",
+            "-4",
+            "-3",
+            "-2",
+            "-1",
+            "0",
+            "+1",
+            "+2",
+            "+3",
+            "+4",
+            "+5",
+            "+6",
+            "+7",
+            "+8",
+            "+9",
+            "+10",
+        ],
+    output:
+        plot=scores2_near_acceptor_plot,
+    script:
+        viz_scores_multi
+
+
+rule scores2_near_acceptor_genomes_plot:
+    input:
+        scores=[caps_near_acceptor_genomes_scores, maps_near_acceptor_genomes_scores],
+    params:
+        model_labels=["maps", "caps"],
+        new_model_labels=["MAPS", "CAPS"],
+        colors=colors2,
+        ylab="Selection score",
+        NA_omit=True,
+        point_size=0.6,
+        point_alpha=0.7,
+        dodge_width=0.2,
+        ylim_min=-0.2,
+        ylim_max=0.3,
+        xlab_angle=90,
+        xlab_hjust=1,
+        xlab_vjust=0.5,
+        legend_title="",
+        xlab_size=14,
+        aspect_ratio=0.3,
+        xlab="Position relative to exon boundary",
+        xlab_labels=[
+            -24,
+            -23,
+            -22,
+            -21,
+            -20,
+            -19,
+            -18,
+            -17,
+            -16,
+            -15,
+            -14,
+            -13,
+            -12,
+            -11,
+            -10,
+            -9,
+            -8,
+            -7,
+            -6,
+            -5,
+            -4,
+            -3,
+            -2,
+            -1,
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+        ],
+        new_xlab_labels=[
+            "-25",
+            "-24",
+            "-23",
+            "-22",
+            "-21",
+            "-20",
+            "-19",
+            "-18",
+            "-17",
+            "-16",
+            "-15",
+            "-14",
+            "-13",
+            "-12",
+            "-11",
+            "-10",
+            "-9",
+            "-8",
+            "-7",
+            "-6",
+            "-5",
+            "-4",
+            "-3",
+            "-2",
+            "-1",
+            "0",
+            "+1",
+            "+2",
+            "+3",
+            "+4",
+            "+5",
+            "+6",
+            "+7",
+            "+8",
+            "+9",
+            "+10",
+        ],
+    output:
+        plot=scores2_near_acceptor_genomes_plot,
+    script:
+        viz_scores_multi
+
+
+rule scores2_near_donor_plot:
+    input:
+        scores=[caps_near_donor_scores, maps_near_donor_scores],
+    params:
+        model_labels=["maps", "caps"],
+        new_model_labels=["MAPS", "CAPS"],
+        colors=colors2,
+        ylab="Selection score",
+        NA_omit=True,
+        point_size=0.6,
+        point_alpha=0.7,
+        dodge_width=0.75,
+        ylim_min=-0.08,
+        ylim_max=0.18,
+        xlab_angle=90,
+        xlab_hjust=1,
+        xlab_vjust=0.5,
+        legend_title="",
+        xlab_labels=[
+            -11,
+            -10,
+            -9,
+            -8,
+            -7,
+            -6,
+            -5,
+            -4,
+            -3,
+            -2,
+            -1,
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+        ],
+        new_xlab_labels=[
+            "-10",
+            "-9",
+            "-8",
+            "-7",
+            "-6",
+            "-5",
+            "-4",
+            "-3",
+            "-2",
+            "-1",
+            "0",
+            "+1",
+            "+2",
+            "+3",
+            "+4",
+            "+5",
+            "+6",
+            "+7",
+            "+8",
+            "+9",
+            "+10",
+        ],
+        xlab_size=14,
+        aspect_ratio=0.3,
+        xlab="Position relative to exon boundary",
+    output:
+        plot=scores2_near_donor_plot,
+    script:
+        viz_scores_multi
+
+
+rule scores2_near_donor_genomes_plot:
+    input:
+        scores=[caps_near_donor_genomes_scores, maps_near_donor_genomes_scores],
+    params:
+        model_labels=["maps", "caps"],
+        new_model_labels=["MAPS", "CAPS"],
+        colors=colors2,
+        ylab="Selection score",
+        NA_omit=True,
+        point_size=0.6,
+        point_alpha=0.7,
+        dodge_width=0.2,
+        ylim_min=-0.2,
+        ylim_max=0.3,
+        xlab_angle=90,
+        xlab_hjust=1,
+        xlab_vjust=0.5,
+        legend_title="",
+        xlab_labels=[
+            -11,
+            -10,
+            -9,
+            -8,
+            -7,
+            -6,
+            -5,
+            -4,
+            -3,
+            -2,
+            -1,
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+        ],
+        new_xlab_labels=[
+            "-10",
+            "-9",
+            "-8",
+            "-7",
+            "-6",
+            "-5",
+            "-4",
+            "-3",
+            "-2",
+            "-1",
+            "0",
+            "+1",
+            "+2",
+            "+3",
+            "+4",
+            "+5",
+            "+6",
+            "+7",
+            "+8",
+            "+9",
+            "+10",
+        ],
+        xlab_size=14,
+        aspect_ratio=0.3,
+        xlab="Position relative to exon boundary",
+    output:
+        plot=scores2_near_donor_genomes_plot,
+    script:
+        viz_scores_multi
+
+
 rule scores3_by_csq_scores_comparison:
     input:
-        scores=[caps_pdd_by_csq_scores, caps_by_csq_scores, maps_by_csq_scores],
+        scores=[caps_ppd_by_csq_scores, caps_by_csq_scores, maps_by_csq_scores],
     params:
         labels_set=[
             "intron_variant",
@@ -580,9 +1066,9 @@ rule scores3_by_csq_scores_comparison:
             "Essential splice",
             "Nonsense",
         ],
-        model_labels=["maps", "caps", "caps_pdd"],
-        new_model_labels=["MAPS", "CAPS", "CAPS-PDD"],
-        caption="Increase in the size of confidence intervals in CAPS and CAPS-PDD compared to MAPS by variant class.",
+        model_labels=["maps", "caps", "caps_ppd"],
+        new_model_labels=["MAPS", "CAPS", "CAPS-PPD"],
+        caption="Increase in the size of confidence intervals in CAPS and CAPS-PPD compared to MAPS by variant class.",
         label="table:CIs_by_csq",
         variable="worst_csq",
     output:
@@ -606,8 +1092,6 @@ rule syn_vars_maps_by_mutability_band_plot:
         xlab_hjust=1,
         reorder_xlab_by_score=False,
         score_name="maps",
-        lconf="maps_lconf",
-        uconf="maps_uconf",
     script:
         viz_scores
 
@@ -637,6 +1121,58 @@ rule syn_vars_caps_by_mutability_band:
         scores=syn_vars_caps_by_mutability_band_scores,
     script:
         calculate_caps
+
+
+rule maps_near_acceptor_scores:
+    input:
+        variants=near_acceptor_vars,
+        calibrate_on=syn_by_context,
+    params:
+        extra="splice_distance",
+        transformation="+",
+    output:
+        scores=maps_near_acceptor_scores,
+    script:
+        calculate_maps
+
+
+rule maps_near_acceptor_genomes_scores:
+    input:
+        variants=near_acceptor_genomes_vars,
+        calibrate_on=syn_by_context_genomes,
+    params:
+        extra="splice_distance",
+        transformation="+",
+    output:
+        scores=maps_near_acceptor_genomes_scores,
+    script:
+        calculate_maps
+
+
+rule maps_near_donor_scores:
+    input:
+        variants=near_donor_vars,
+        calibrate_on=syn_by_context,
+    params:
+        extra="splice_distance",
+        transformation="+",
+    output:
+        scores=maps_near_donor_scores,
+    script:
+        calculate_maps
+
+
+rule maps_near_donor_genomes_scores:
+    input:
+        variants=near_donor_genomes_vars,
+        calibrate_on=syn_by_context_genomes,
+    params:
+        extra="splice_distance",
+        transformation="+",
+    output:
+        scores=maps_near_donor_genomes_scores,
+    script:
+        calculate_maps
 
 
 rule maps_by_csq_scores:
@@ -705,8 +1241,6 @@ rule maps_by_csq_plot:
         xlab_hjust=1,
         reorder_xlab_by_score=False,
         score_name="maps",
-        lconf="maps_lconf",
-        uconf="maps_uconf",
     script:
         viz_scores
 
@@ -736,8 +1270,6 @@ rule all_vars_caps_by_mutability_band_plot:
         xlab_hjust=1,
         reorder_xlab_by_score=False,
         score_name="caps",
-        lconf="caps_lconf",
-        uconf="caps_uconf",
     script:
         viz_scores
 
@@ -758,8 +1290,6 @@ rule all_vars_maps_by_mutability_band_plot:
         xlab_hjust=1,
         reorder_xlab_by_score=False,
         score_name="maps",
-        lconf="maps_lconf",
-        uconf="maps_uconf",
     script:
         viz_scores
 
@@ -780,8 +1310,6 @@ rule all_vars_sqrt_by_mutability_band_plot:
         xlab_hjust=1,
         reorder_xlab_by_score=False,
         score_name="maps",
-        lconf="maps_lconf",
-        uconf="maps_uconf",
     script:
         viz_scores
 
@@ -829,7 +1357,62 @@ rule all_vars_sqrt_by_mutability_band:
 ###############################################################################
 
 
-# Calculate CAPS for all major functional classes of SNVs
+rule caps_near_acceptor_scores:
+    input:
+        variants=near_acceptor_vars,
+        exp_variants=syn_by_context_p4,
+    params:
+        phat_method="Var",
+        confint_method="CAPS",
+        variable="splice_distance",
+    output:
+        scores=caps_near_acceptor_scores,
+    script:
+        calculate_caps
+
+
+rule caps_near_acceptor_genomes_scores:
+    input:
+        variants=near_acceptor_genomes_vars,
+        exp_variants=syn_by_context_p4_genomes,
+    params:
+        phat_method="Var",
+        confint_method="CAPS",
+        variable="splice_distance",
+    output:
+        scores=caps_near_acceptor_genomes_scores,
+    script:
+        calculate_caps
+
+
+rule caps_near_donor_scores:
+    input:
+        variants=near_donor_vars,
+        exp_variants=syn_by_context_p4,
+    params:
+        phat_method="Var",
+        confint_method="CAPS",
+        variable="splice_distance",
+    output:
+        scores=caps_near_donor_scores,
+    script:
+        calculate_caps
+
+
+rule caps_near_donor_genomes_scores:
+    input:
+        variants=near_donor_genomes_vars,
+        exp_variants=syn_by_context_p4_genomes,
+    params:
+        phat_method="Var",
+        confint_method="CAPS",
+        variable="splice_distance",
+    output:
+        scores=caps_near_donor_genomes_scores,
+    script:
+        calculate_caps
+
+
 rule caps_by_csq_scores:
     input:
         variants=by_csq,
@@ -858,28 +1441,28 @@ rule caps_by_csq_genomes_scores:
         calculate_caps
 
 
-rule caps_pdd_by_csq_scores:
+rule caps_ppd_by_csq_scores:
     input:
         variants=by_csq,
-        exp_variants=syn_by_context_pdd,
+        exp_variants=syn_by_context_ppd,
     params:
-        phat_method="PDD",
+        phat_method="PPD",
         variable="worst_csq",
     output:
-        scores=caps_pdd_by_csq_scores,
+        scores=caps_ppd_by_csq_scores,
     script:
         calculate_caps
 
 
-rule caps_pdd_by_csq_genomes_scores:
+rule caps_ppd_by_csq_genomes_scores:
     input:
         variants=by_csq_genomes,
-        exp_variants=syn_by_context_pdd_genomes,
+        exp_variants=syn_by_context_ppd_genomes,
     params:
-        phat_method="PDD",
+        phat_method="PPD",
         variable="worst_csq",
     output:
-        scores=caps_pdd_by_csq_genomes_scores,
+        scores=caps_ppd_by_csq_genomes_scores,
     script:
         calculate_caps
 
@@ -891,8 +1474,9 @@ rule caps_by_csq_plot:
         plot=caps_by_csq_plot,
     params:
         ylim_max=0.16,
+        aspect_ratio=0.6,
         ylim_min=-0.04,
-        xlab_angle=45,
+        xlab_angle=30,
         xlab_vjust=1,
         xlab_hjust=1,
         reorder_xlab_by_score=False,
@@ -924,17 +1508,15 @@ rule caps_by_csq_plot:
             "Nonsense",
         ],
         score_name="caps",
-        lconf="caps_lconf",
-        uconf="caps_uconf",
     script:
         viz_scores
 
 
-rule caps_pdd_by_csq_plot:
+rule caps_ppd_by_csq_plot:
     input:
-        scores=caps_pdd_by_csq_scores,
+        scores=caps_ppd_by_csq_scores,
     output:
-        plot=caps_pdd_by_csq_plot,
+        plot=caps_ppd_by_csq_plot,
     params:
         ylim_max=0.16,
         ylim_min=-0.04,
@@ -969,26 +1551,12 @@ rule caps_pdd_by_csq_plot:
             "Essential splice",
             "Nonsense",
         ],
-        score_name="caps_pdd",
-        lconf="caps_pdd_lconf",
-        uconf="caps_pdd_uconf",
+        score_name="caps_ppd",
     script:
         viz_scores
 
 
 ######################################################################
-
-
-rule all_loeuf_bins_to_tops:
-    input:
-        groups=all_constrained,
-    output:
-        joined_groups=all_constrained_joined_groups,
-    params:
-        variable="loeuf",
-        desc=True,
-    script:
-        join_groups
 
 
 rule syn_loeuf_bins_to_tops:
@@ -1003,20 +1571,7 @@ rule syn_loeuf_bins_to_tops:
         join_groups
 
 
-rule calculate_by_loeuf_group_all:
-    input:
-        variants=all_constrained_joined_groups,
-        exp_variants=syn_by_context_p4,
-    params:
-        phat_method="Var",
-        variable="loeuf",
-    output:
-        scores=all_constrained_tops_scores,
-    script:
-        calculate_caps
-
-
-rule calculate_by_loeuf_group_syn:
+rule calculate_caps_by_loeuf_group_syn:
     input:
         variants=syn_constrained_joined_groups,
         exp_variants=syn_by_context_p4,
@@ -1024,48 +1579,71 @@ rule calculate_by_loeuf_group_syn:
         phat_method="Var",
         variable="loeuf",
     output:
-        scores=syn_constrained_tops_scores,
+        scores=syn_constrained_tops_caps_scores,
     script:
         calculate_caps
 
 
-rule all_loeuf_groups_plot:
+rule calculate_maps_by_loeuf_group_syn:
     input:
-        scores=all_constrained_tops_scores,
-    output:
-        plot=all_constrained_plot,
+        calibrate_on=syn_by_context,
+        variants=syn_constrained_joined_groups,
     params:
-        xlab="LOEUF top group",
-        reorder_xlab_by_score=False,
-        aspect_ratio=0.5,
-        xlab_labels=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
-        new_xlab_labels=[
-            "10%",
-            "20%",
-            "30%",
-            "40%",
-            "50%",
-            "60%",
-            "70%",
-            "80%",
-            "90%",
-            "100%",
-        ],
-        xlab_angle=45,
-        xlab_vjust=1,
-        xlab_hjust=1,
-        score_name="caps",
-        lconf="caps_lconf",
-        uconf="caps_uconf",
+        extra="loeuf",
+        transformation="+",
+    output:
+        scores=syn_constrained_tops_maps_scores,
     script:
-        viz_scores
+        calculate_maps
 
 
-rule syn_loeuf_groups_plot:
+rule syn_loeuf_scores2_groups_plot:
     input:
-        scores=syn_constrained_tops_scores,
+        scores=[
+            syn_constrained_tops_caps_scores,
+            syn_constrained_tops_maps_scores,
+        ],
+    params:
+        ylab="Selection score",
+        xlab="LOEUF top group",
+        reorder_xlab_by_score=False,
+        xlab_labels=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+        new_xlab_labels=[
+            "10%",
+            "20%",
+            "30%",
+            "40%",
+            "50%",
+            "60%",
+            "70%",
+            "80%",
+            "90%",
+            "100%",
+        ],
+        aspect_ratio=0.3,
+        text_size=15,
+        xlab_size=15,
+        point_size=0.6,
+        dodge_width=0.5,
+        point_alpha=0.7,
+        xlab_angle=20,
+        xlab_vjust=1,
+        xlab_hjust=1,
+        model_labels=["maps", "caps"],
+        new_model_labels=["MAPS", "CAPS"],
+        colors=colors2,
+        legend_title="",
     output:
-        plot=syn_constrained_plot,
+        plot=syn_constrained_scores2_plot,
+    script:
+        viz_scores_multi
+
+
+rule syn_loeuf_groups_caps_plot:
+    input:
+        scores=syn_constrained_tops_caps_scores,
+    output:
+        plot=syn_constrained_caps_plot,
     params:
         xlab="LOEUF top group",
         reorder_xlab_by_score=False,
@@ -1087,13 +1665,94 @@ rule syn_loeuf_groups_plot:
         xlab_vjust=1,
         xlab_hjust=1,
         score_name="caps",
-        lconf="caps_lconf",
-        uconf="caps_uconf",
     script:
         viz_scores
 
 
 ###############################################################################
+
+
+rule context_by_csq_genomes:
+    input:
+        variants=by_csq_genomes,
+    params:
+        caption="Proportion of transversion contexts by variant class for genomes.",
+        variable="worst_csq",
+        variable_name="Class",
+        labels_set=[
+            "intergenic_variant",
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        labels=[
+            "intergenic_variant",
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        new_labels=[
+            "Intergenic",
+            "Intron",
+            "5'UTR",
+            "3'UTR",
+            "Synonymous",
+            "Missense",
+            "Essential splice",
+            "Nonsense",
+        ],
+    output:
+        Out=contexts_by_csq_genomes,
+    script:
+        contexts
+
+
+rule context_by_csq:
+    input:
+        variants=by_csq,
+    params:
+        caption="Proportion of transversion contexts by variant class for exomes.",
+        variable="worst_csq",
+        variable_name="Class",
+        labels_set=[
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        labels=[
+            "intron_variant",
+            "5_prime_UTR_variant",
+            "3_prime_UTR_variant",
+            "synonymous_variant",
+            "missense_variant",
+            "essential_splice",
+            "stop_gained",
+        ],
+        new_labels=[
+            "Intron",
+            "5'UTR",
+            "3'UTR",
+            "Synonymous",
+            "Missense",
+            "Essential splice",
+            "Nonsense",
+        ],
+    output:
+        Out=contexts_by_csq,
+    script:
+        contexts
 
 
 rule counts_by_csq:
@@ -1272,11 +1931,15 @@ rule Whiffin2020_uORFs_effects_plot_stop:
         legend_title="",
         xlab="",
         ylab="Selection score",
-        xlab_angle=90,
+        aspect_ratio=0.3,
+        text_size=23,
+        xlab_size=23,
+        xlab_angle=10,
+        point_size=1,
         xlab_hjust=1,
         xlab_vjust=1,
-        ylim_min=-0.1,
-        ylim_max=0.2,
+        ylim_min=-0.07,
+        ylim_max=0.15,
         # Value taken from "gs://gcp-public-data--gnomad/papers/2019-flagship-lof/v1.0/summary_results/maps_plain_genomes.txt.bgz"
         gnomAD_missense_level_genomes=0.06182,
     output:
@@ -1328,11 +1991,15 @@ rule Whiffin2020_uORFs_effects_plot_uAUG:
         legend_title="",
         xlab="",
         ylab="Selection score",
-        xlab_angle=90,
+        text_size=23,
+        xlab_size=23,
+        xlab_angle=10,
+        aspect_ratio=0.3,
+        point_size=1,
         xlab_hjust=1,
         xlab_vjust=1,
-        ylim_min=-0.1,
-        ylim_max=0.2,
+        ylim_min=-0.07,
+        ylim_max=0.15,
         # Value taken from "gs://gcp-public-data--gnomad/papers/2019-flagship-lof/v1.0/summary_results/maps_plain_genomes.txt.bgz"
         gnomAD_missense_level_genomes=0.06182,
     output:

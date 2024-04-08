@@ -36,7 +36,7 @@ get_CAPS <- function(dat, phat, confint_method) {
 
 # calculate the CI on CAPS using simulated
 # posterior predictive distribution
-get_CAPS_pdd <- function(dat, phat_sim, bPDD = FALSE) {
+get_CAPS_ppd <- function(dat, phat_sim, bPPD = FALSE) {
   # dat: data of counts of singletons per context for the class of variants of interest
   #       should have colums context, alt, methylation_level, singleton_count, variant_count
   # phat_sim: posterior predictive distributions of expected prop. sing. per context
@@ -44,7 +44,7 @@ get_CAPS_pdd <- function(dat, phat_sim, bPDD = FALSE) {
   # number of simulations
   N <- nrow(phat_sim)
 
-  # add context string to match context with PDD matrix
+  # add context string to match context with PPD matrix
   dat$colname <- paste(dat$context, ".", dat$alt, dat$methylation_level, sep = "")
 
   # simulate expected counts. Could be done in one matrix operation,
@@ -70,7 +70,7 @@ get_CAPS_pdd <- function(dat, phat_sim, bPDD = FALSE) {
     variant_count = sum(variant_count)
   )
 
-  # get PDD of observed prop. of sing.
+  # get PPD of observed prop. of sing.
   pobs_sim <- rbeta(N, obs_count$observed + 1, obs_count$variant_count - obs_count$observed + 1)
 
   # binomial simulation
@@ -79,14 +79,14 @@ get_CAPS_pdd <- function(dat, phat_sim, bPDD = FALSE) {
   # CAPS
   caps_sim <- obs_ps_sim - exp_ps_sim
 
-  # return summary or whole PDD
-  if (bPDD) {
+  # return summary or whole PPD
+  if (bPPD) {
     caps_sim
   } else {
     res <- data.frame(
-      caps_pdd = mean(caps_sim), caps_pdd_se = sd(caps_sim),
-      caps_pdd_lconf = unname(quantile(caps_sim, probs = c(0.025))),
-      caps_pdd_uconf = unname(quantile(caps_sim, probs = c(0.975)))
+      caps_ppd = mean(caps_sim), caps_ppd_se = sd(caps_sim),
+      caps_ppd_lconf = unname(quantile(caps_sim, probs = c(0.025))),
+      caps_ppd_uconf = unname(quantile(caps_sim, probs = c(0.975)))
     )
   }
 }
@@ -95,7 +95,7 @@ exp_vars <- read.table(snakemake@input[["exp_variants"]], header = TRUE, sep = "
 
 vars <- read.table(snakemake@input[["variants"]], header = TRUE, sep = "\t")
 
-if (!("phat" %in% colnames(exp_vars)) & snakemake@params[["phat_method"]] != "PDD") {
+if (!("phat" %in% colnames(exp_vars)) & snakemake@params[["phat_method"]] != "PPD") {
   exp_vars <- mutate(exp_vars, phat = singleton_count / variant_count)
   warning("Using proportions observed as best estimates of per-context probabilities (phat)")
 }
@@ -109,10 +109,10 @@ for (v in na.omit(unique(vars[[snakemake@params[["variable"]]]]))) {
       exp_vars,
       confint_method = ifelse(is.null(snakemake@params[["confint_method"]]), "CAPS", snakemake@params[["confint_method"]])
     )
-  } else if (snakemake@params[["phat_method"]] == "PDD") {
-    get_CAPS_pdd(filter(vars, .data[[snakemake@params[["variable"]]]] == v), exp_vars)
+  } else if (snakemake@params[["phat_method"]] == "PPD") {
+    get_CAPS_ppd(filter(vars, .data[[snakemake@params[["variable"]]]] == v), exp_vars)
   } else {
-    stop("Only 'Var' and 'PDD' methods are supported ('phat_method')")
+    stop("Only 'Var' and 'PPD' methods are supported ('phat_method')")
   }  } %>%
     mutate(variable_value = v) -> x
   df <- rbind(df, x)

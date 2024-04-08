@@ -8,11 +8,15 @@ GS = RemoteProvider(stay_on_remote=True)
 
 # Files for CAPS ##############################################################
 all_by_csq = GS.remote(config["gcp_rootdir"] + "by_csq.tsv")
+all_by_csq_w_AF_AC = GS.remote(config["gcp_rootdir"] + "by_csq_w_AF_AC.tsv")
 all_by_csq_genomes = GS.remote(config["gcp_rootdir"] + "by_csq_genomes.tsv")
 
 # Files for analysis ##########################################################
 # All QC-compliant synonymous variants, by LOEUF constraint level
 syn_constrained = GS.remote(config["gcp_rootdir"] + "syn_constrained.tsv")
+# Variants near canonical splice positions
+near_splice_vars = GS.remote(config["gcp_rootdir"] + "near_splice_vars.tsv")
+near_splice_vars_genomes = GS.remote(config["gcp_rootdir"] + "near_splice_vars_genomes.tsv")
 
 # Whiffin2020 #################################################################
 
@@ -43,6 +47,9 @@ rule all:
         # Exomes ##############################################################
         all_by_csq,
         syn_constrained,
+        # Splicing ############################################################
+        near_splice_vars,
+        near_splice_vars_genomes,
         # Whiffin2020 #########################################################
         intronic_by_context_Whiffin2020,
         syn_by_context_Whiffin2020,
@@ -57,9 +64,6 @@ rule mutation_ht:
         mutation_ht = hl.read_table(config["mutation_rates_ht_path"])
         mutation_ht.export(output[0])
 
-
-# Counts of singletons in all variants grouped by
-# variant class and context (exomes)
 rule all_by_csq:
     output:
         all_by_csq,
@@ -84,6 +88,43 @@ rule all_by_csq:
             "worst_csq",
             "protein_coding",
             "coverage",
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(variants.freq[0].AC == 1),
+        ).export(
+            output[0]
+        )
+
+
+rule all_by_csq_w_AF_AC:
+    output:
+        all_by_csq_w_AF_AC,
+    run:
+        import hail as hl
+        from preprocessing import preprocessing
+
+        variants = preprocessing(
+            config["exomes_ht_path"],
+            config["context_ht_path"],
+            config["mutation_rates_ht_path"],
+            config["coverage_exomes_ht_path"],
+            {"female": config["female_exomes"], "male": config["male_exomes"]},
+        )
+
+        variants = variants.annotate(AF = variants.freq[0].AF)
+        variants = variants.annotate(AC = variants.freq[0].AC)
+
+        variants.group_by(
+            "context",
+            "ref",
+            "alt",
+            "mu",
+            "methylation_level",
+            "worst_csq",
+            "protein_coding",
+            "coverage",
+            "AF",
+            "AC"
         ).aggregate(
             variant_count=hl.agg.count(),
             singleton_count=hl.agg.count_where(variants.freq[0].AC == 1),
@@ -156,6 +197,7 @@ rule annotate_syn_constrained:
             {"female": config["female_exomes"], "male": config["male_exomes"]},
         )
 
+        # TODO: consider removing this part and applying QC in the "Analysis" pipeline
         syn_vars = variants.filter(
             (variants.worst_csq == "synonymous_variant")
             & (variants.protein_coding == True)
@@ -221,6 +263,137 @@ rule annotate_syn_constrained:
         ).aggregate(
             variant_count=hl.agg.count(),
             singleton_count=hl.agg.count_where(syn_vars.freq[0].AC == 1),
+        ).export(
+            output[0]
+        )
+
+
+###############################################################################
+
+rule near_splice_vars:
+    output:
+        near_splice_vars,
+    run:
+        import hail as hl
+        from preprocessing import preprocessing
+
+        variants = preprocessing(
+            config["exomes_ht_path"],
+            config["context_ht_path"],
+            config["mutation_rates_ht_path"],
+            config["coverage_exomes_ht_path"],
+            {"female": config["female_exomes"], "male": config["male_exomes"]},
+        )
+
+        # This selects canonical donor and acceptor positions
+        splice_vars = variants.filter(
+            (
+                (variants.worst_csq == "splice_donor_variant")
+                | (variants.worst_csq == "splice_acceptor_variant")
+            )
+            # In this pipeline, variants with reference alleles
+            # "G"/"T" are replaced with "C"/"A" and marked
+            # "was_flipped". To extract the positions of the last
+            # intronic position for acceptors and first intronic
+            # position for donors, we have to select those variants,
+            # for which reference allele is "C" ("G" originally) and
+            # "was_flipped" is True.
+            & ((variants.ref == "C") & (variants.was_flipped == True))
+        )
+
+        # Take a 30bp window around each canonical splice position
+        splice_vars = splice_vars.annotate(window=splice_vars.locus.window(30, 30))
+
+        splice_vars = splice_vars.key_by(splice_vars.window)
+
+        variants = variants.annotate(splice_type=splice_vars[variants.locus].worst_csq)
+        # Filter out variants that don't fall within a near-splice region
+        variants = variants.filter(hl.is_defined(variants.splice_type))
+        variants = variants.annotate(
+            splice_pos=splice_vars[variants.locus].locus.position
+        )
+        variants = variants.annotate(
+            splice_distance=variants.locus.position - variants.splice_pos
+        )
+
+        variants.group_by(
+            "context",
+            "ref",
+            "alt",
+            "mu",
+            "methylation_level",
+            "worst_csq",
+            "protein_coding",
+            "coverage",
+            "splice_distance",
+            "splice_type",
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(variants.freq[0].AC == 1),
+        ).export(
+            output[0]
+        )
+
+rule near_splice_vars_genomes:
+    output:
+        near_splice_vars_genomes,
+    run:
+        import hail as hl
+        from preprocessing import preprocessing
+
+        variants = preprocessing(
+            config["genomes_ht_path"],
+            config["context_ht_path"],
+            config["mutation_rates_ht_path"],
+            config["coverage_genomes_ht_path"],
+            {"female": config["female_genomes"], "male": config["male_genomes"]},
+        )
+
+        # This selects canonical donor and acceptor positions
+        splice_vars = variants.filter(
+            (
+                (variants.worst_csq == "splice_donor_variant")
+                | (variants.worst_csq == "splice_acceptor_variant")
+            )
+            # In this pipeline, variants with reference alleles
+            # "G"/"T" are replaced with "C"/"A" and marked
+            # "was_flipped". To extract the positions of the last
+            # intronic position for acceptors and first intronic
+            # position for donors, we have to select those variants,
+            # for which reference allele is "C" ("G" originally) and
+            # "was_flipped" is True.
+            & ((variants.ref == "C") & (variants.was_flipped == True))
+        )
+
+        # Take a 30bp window around each canonical splice position
+        splice_vars = splice_vars.annotate(window=splice_vars.locus.window(30, 30))
+
+        splice_vars = splice_vars.key_by(splice_vars.window)
+
+        variants = variants.annotate(splice_type=splice_vars[variants.locus].worst_csq)
+        # Filter out variants that don't fall within a near-splice region
+        variants = variants.filter(hl.is_defined(variants.splice_type))
+        variants = variants.annotate(
+            splice_pos=splice_vars[variants.locus].locus.position
+        )
+        variants = variants.annotate(
+            splice_distance=variants.locus.position - variants.splice_pos
+        )
+
+        variants.group_by(
+            "context",
+            "ref",
+            "alt",
+            "mu",
+            "methylation_level",
+            "worst_csq",
+            "protein_coding",
+            "coverage",
+            "splice_distance",
+            "splice_type",
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(variants.freq[0].AC == 1),
         ).export(
             output[0]
         )
