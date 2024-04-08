@@ -3,6 +3,7 @@ calculate_caps = "calculate_caps.R"
 calculate_maps = "calculate_maps.R"
 compare_scores = "compare_scores.R"
 viz_scores = "viz_scores.R"
+viz_model = "viz_model.R"
 counts = "counts.R"
 contexts = "contexts.R"
 filtering = "filtering.R"
@@ -13,7 +14,6 @@ Whiffin2020_uORFs_preprocessing = "Whiffin2020_uORFs_preprocessing.R"
 
 colors2 = ["#999899", "#B11116"]
 colors3 = ["#999899", "#B11116", "#F04B5D"]
-reds = ["#B11116", "#EF4640", "#F04B5D"]  # TODO: fix, too similar
 greys = ["#56565A", "#999899", "#BDBBBB", "#D8D1CA", "#CDC3BB"]
 
 
@@ -224,6 +224,8 @@ scores3_by_csq_scores_comparison = "scores3_by_csq_scores_comparison.tex"
 # Synonymous variants by Top % LOEUF group
 syn_constrained_caps_plot = "syn_constrained_caps.pdf"
 syn_constrained_scores2_plot = "syn_constrained_scores2.pdf"
+# Fit of the MAPS model calibrated on synonymous variants
+MAPS_model_fit_on_syn = "MAPS_model_fit_on_syn.pdf"
 # Whiffin2020 #################################################################
 Whiffin2020_uORFs_effects_uAUG_plot = "Whiffin2020_uORFs_effects_uAUG.pdf"
 Whiffin2020_uORFs_effects_stop_plot = "Whiffin2020_uORFs_effects_stop.pdf"
@@ -240,6 +242,7 @@ rule all:
         contexts_by_csq,
         contexts_by_csq_genomes,
         # Plots ###############################################################
+        MAPS_model_fit_on_syn,
         caps_by_csq_plot,
         all_vars_scores2_by_mutability_band_plot,
         all_vars_maps_by_mutability_band_plot,
@@ -344,6 +347,26 @@ rule get_near_donor_variants_genomes:
         variable_value="splice_donor_variant",
     script:
         filtering
+
+
+###############################################################################
+#                                  MAPS model                                 #
+###############################################################################
+
+
+rule MAPS_model_fit_on_syn:
+    input:
+        mutation_ht=mutation_ht,
+        calibrate_on=syn_by_context,
+    params:
+        transformation="+",
+        legend_title="",
+        colors=colors3,
+        text_size=22,
+    output:
+        plot=MAPS_model_fit_on_syn,
+    script:
+        viz_model
 
 
 ###############################################################################
