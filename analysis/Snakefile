@@ -1,3 +1,18 @@
+###############################################################################
+#                                  Parameters                                 #
+###############################################################################
+
+# NOTE: Setting this to "True" will recalibrate CAPS, which is time-
+# and resource-intensive. Re-use the files in "model/" if possible.
+recalibrate_CAPS = False
+
+colors2 = ["#999899", "#B11116"]
+colors3 = ["#999899", "#B11116", "#F04B5D"]
+
+###############################################################################
+#                                   Scripts                                   #
+###############################################################################
+
 caps_model = "../model/greta_model.R"
 calculate_caps = "calculate_caps.R"
 calculate_maps = "calculate_maps.R"
@@ -11,11 +26,6 @@ join_groups = "join_groups.R"
 viz_scores_multi = "viz_scores_multi.R"
 annotate_with_mutability_bands = "annotate_with_mutability_bands.R"
 Whiffin2020_uORFs_preprocessing = "Whiffin2020_uORFs_preprocessing.R"
-
-colors2 = ["#999899", "#B11116"]
-colors3 = ["#999899", "#B11116", "#F04B5D"]
-greys = ["#56565A", "#999899", "#BDBBBB", "#D8D1CA", "#CDC3BB"]
-
 
 ###############################################################################
 #                                 Input files                                 #
@@ -373,47 +383,46 @@ rule MAPS_model_fit_on_syn:
 #                                  CAPS model                                 #
 ###############################################################################
 
-# TODO: uncomment
-# rule caps_model:
-#     input:
-#         syn_vars=syn_by_context,
-#         intron_vars=intronic_by_context,
-#     output:
-#         phat=syn_by_context_p4,
-#         phat_sim=syn_by_context_ppd,
-#         theta_sample=theta_sample,
-#     resources:
-#         mem_mb=3072,
-#     script:
-#         caps_model
-#
-#
-# rule caps_model_genomes:
-#     input:
-#         syn_vars=syn_by_context_genomes,
-#         intron_vars=intronic_by_context_genomes,
-#     output:
-#         phat=syn_by_context_p4_genomes,
-#         phat_sim=syn_by_context_ppd_genomes,
-#         theta_sample=theta_sample_genomes,
-#     resources:
-#         mem_mb=3072,
-#     script:
-#         caps_model
-#
-#
-# rule caps_model_Whiffin2020:
-#     input:
-#         syn_vars=syn_by_context_Whiffin2020,
-#         intron_vars=intronic_by_context_Whiffin2020,
-#     output:
-#         phat=syn_by_context_p4_Whiffin2020,
-#         phat_sim=syn_by_context_ppd_Whiffin2020,
-#         theta_sample=theta_sample_Whiffin2020,
-#     resources:
-#         mem_mb=3072,
-#     script:
-#         caps_model
+if recalibrate_CAPS == True:
+
+    rule caps_model:
+        input:
+            syn_vars=syn_by_context,
+            intron_vars=intronic_by_context,
+        output:
+            phat=syn_by_context_p4,
+            phat_sim=syn_by_context_ppd,
+            theta_sample=theta_sample,
+        resources:
+            mem_mb=3072,
+        script:
+            caps_model
+
+    rule caps_model_genomes:
+        input:
+            syn_vars=syn_by_context_genomes,
+            intron_vars=intronic_by_context_genomes,
+        output:
+            phat=syn_by_context_p4_genomes,
+            phat_sim=syn_by_context_ppd_genomes,
+            theta_sample=theta_sample_genomes,
+        resources:
+            mem_mb=3072,
+        script:
+            caps_model
+
+    rule caps_model_Whiffin2020:
+        input:
+            syn_vars=syn_by_context_Whiffin2020,
+            intron_vars=intronic_by_context_Whiffin2020,
+        output:
+            phat=syn_by_context_p4_Whiffin2020,
+            phat_sim=syn_by_context_ppd_Whiffin2020,
+            theta_sample=theta_sample_Whiffin2020,
+        resources:
+            mem_mb=3072,
+        script:
+            caps_model
 
 
 ###############################################################################
