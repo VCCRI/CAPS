@@ -16,7 +16,13 @@ all_by_csq_genomes = GS.remote(config["gcp_rootdir"] + "by_csq_genomes.tsv")
 syn_constrained = GS.remote(config["gcp_rootdir"] + "syn_constrained.tsv")
 # Variants near canonical splice positions
 near_splice_vars = GS.remote(config["gcp_rootdir"] + "near_splice_vars.tsv")
-near_splice_vars_genomes = GS.remote(config["gcp_rootdir"] + "near_splice_vars_genomes.tsv")
+near_splice_vars_genomes = GS.remote(
+    config["gcp_rootdir"] + "near_splice_vars_genomes.tsv"
+)
+# Canonical splice site variants with a binary (high/low) SpliceAI score
+canonical_splice_site_vars = GS.remote(
+    config["gcp_rootdir"] + "canonical_splice_site_vars.tsv"
+)
 
 # Whiffin2020 #################################################################
 
@@ -35,6 +41,8 @@ intronic_by_context_Whiffin2020 = GS.remote(
 lof_metrics_by_gene_file = GS.remote(config["gcp_rootdir"] + "lof_metrics_by_gene.txt")
 # Mutability table
 mutation_ht = GS.remote(config["gcp_rootdir"] + "mutation_ht.tsv")
+# Pre-calculated SpliceAI scores (hg19)
+spliceai_scores = GS.remote(config["spliceai_scores_path"])
 
 ###############################################################################
 
@@ -50,6 +58,7 @@ rule all:
         # Splicing ############################################################
         near_splice_vars,
         near_splice_vars_genomes,
+        canonical_splice_site_vars,
         # Whiffin2020 #########################################################
         intronic_by_context_Whiffin2020,
         syn_by_context_Whiffin2020,
@@ -63,6 +72,7 @@ rule mutation_ht:
 
         mutation_ht = hl.read_table(config["mutation_rates_ht_path"])
         mutation_ht.export(output[0])
+
 
 rule all_by_csq:
     output:
@@ -86,7 +96,6 @@ rule all_by_csq:
             "mu",
             "methylation_level",
             "worst_csq",
-            "protein_coding",
             "coverage",
         ).aggregate(
             variant_count=hl.agg.count(),
@@ -111,8 +120,8 @@ rule all_by_csq_w_AF_AC:
             {"female": config["female_exomes"], "male": config["male_exomes"]},
         )
 
-        variants = variants.annotate(AF = variants.freq[0].AF)
-        variants = variants.annotate(AC = variants.freq[0].AC)
+        variants = variants.annotate(AF=variants.freq[0].AF)
+        variants = variants.annotate(AC=variants.freq[0].AC)
 
         variants.group_by(
             "context",
@@ -121,10 +130,9 @@ rule all_by_csq_w_AF_AC:
             "mu",
             "methylation_level",
             "worst_csq",
-            "protein_coding",
             "coverage",
             "AF",
-            "AC"
+            "AC",
         ).aggregate(
             variant_count=hl.agg.count(),
             singleton_count=hl.agg.count_where(variants.freq[0].AC == 1),
@@ -155,7 +163,6 @@ rule all_by_csq_genomes:
             "alt",
             "mu",
             "methylation_level",
-            "protein_coding",
             "worst_csq",
             "coverage",
         ).aggregate(
@@ -169,14 +176,14 @@ rule all_by_csq_genomes:
 # Constrained genes ###########################################################
 
 
-# TODO: fix
 rule download_LOEUF:
     output:
         lof_metrics_by_gene_file,
     shell:
         """
         wget -O lof_metrics_by_gene.txt.bgz {config[lof_metrics_by_gene]}
-        gunzip -c lof_metrics_by_gene.txt.bgz > {output[0]}
+        gunzip -c lof_metrics_by_gene.txt.bgz > lof_metrics_by_gene.txt
+        gsutil cp ./lof_metrics_by_gene.txt {output[0]}
         """
 
 
@@ -197,11 +204,8 @@ rule annotate_syn_constrained:
             {"female": config["female_exomes"], "male": config["male_exomes"]},
         )
 
-        # TODO: consider removing this part and applying QC in the "Analysis" pipeline
         syn_vars = variants.filter(
-            (variants.worst_csq == "synonymous_variant")
-            & (variants.protein_coding == True)
-            & (variants.coverage >= 30)
+            (variants.worst_csq == "synonymous_variant") & (variants.coverage >= 30)
         )
 
         syn_vars = syn_vars.annotate(
@@ -270,6 +274,7 @@ rule annotate_syn_constrained:
 
 ###############################################################################
 
+
 rule near_splice_vars:
     output:
         near_splice_vars,
@@ -323,7 +328,6 @@ rule near_splice_vars:
             "mu",
             "methylation_level",
             "worst_csq",
-            "protein_coding",
             "coverage",
             "splice_distance",
             "splice_type",
@@ -333,6 +337,7 @@ rule near_splice_vars:
         ).export(
             output[0]
         )
+
 
 rule near_splice_vars_genomes:
     output:
@@ -387,7 +392,6 @@ rule near_splice_vars_genomes:
             "mu",
             "methylation_level",
             "worst_csq",
-            "protein_coding",
             "coverage",
             "splice_distance",
             "splice_type",
@@ -471,6 +475,59 @@ rule intronic_by_context_Whiffin2020:
         ).aggregate(
             variant_count=hl.agg.count(),
             singleton_count=hl.agg.count_where(intron_vars.freq[0].AC == 1),
+        ).export(
+            output[0]
+        )
+
+
+rule canonical_splice_site_vars:
+    input:
+        spliceai_scores,
+    output:
+        canonical_splice_site_vars,
+    run:
+        import hail as hl
+        from preprocessing import preprocessing
+
+        variants = preprocessing(
+            config["exomes_ht_path"],
+            config["context_ht_path"],
+            config["mutation_rates_ht_path"],
+            config["coverage_exomes_ht_path"],
+            {"female": config["female_exomes"], "male": config["male_exomes"]},
+        )
+
+        variants = variants.filter(
+            (variants.worst_csq == "splice_acceptor_variant")
+            | (variants.worst_csq == "splice_donor_variant")
+        )
+
+        spliceai = hl.import_vcf(input[0], force_bgz=True)
+        spliceai = spliceai.make_table()
+        spliceai = spliceai[variants.key]
+
+        variants = variants.annotate(
+            high_DS_AG=hl.if_else(spliceai.info.DS_AG >= 0.8, 1, 0),
+            high_DS_AL=hl.if_else(spliceai.info.DS_AL >= 0.8, 1, 0),
+            high_DS_DG=hl.if_else(spliceai.info.DS_DG >= 0.8, 1, 0),
+            high_DS_DL=hl.if_else(spliceai.info.DS_DL >= 0.8, 1, 0),
+        )
+
+        variants.group_by(
+            "context",
+            "ref",
+            "alt",
+            "mu",
+            "methylation_level",
+            "worst_csq",
+            "coverage",
+            "high_DS_AG",
+            "high_DS_AL",
+            "high_DS_DG",
+            "high_DS_DL",
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(variants.freq[0].AC == 1),
         ).export(
             output[0]
         )
