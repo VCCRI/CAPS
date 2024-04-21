@@ -1,0 +1,33 @@
+rule all:
+    input:
+        config["scores"],
+        config["plot"],
+
+
+rule calculate_caps:
+    input:
+        variants=config["obs"],
+        exp_variants=config["exp"],
+    params:
+        phat_method="Var",
+        confint_method="CAPS",
+        variable=config["var"],
+    output:
+        scores=config["scores"],
+    script:
+        config["calculate_caps_script"]
+
+
+rule viz_scores:
+    input:
+        scores=config["scores"],
+    output:
+        plot=config["plot"],
+    params:
+        score_name="caps",
+        xlab_angle=30,
+        xlab_hjust=1,
+        xlab_vjust=1,
+        reorder_xlab_by_score=False,
+    script:
+        config["viz_scores_script"]
