@@ -33,6 +33,12 @@ intronic_by_context_Whiffin2020 = GS.remote(
     config["gcp_rootdir"] + "intronic_by_context_Whiffin2020.tsv"
 )
 
+# AlphaMissense ###############################################################
+
+missense_vars_with_alphamissense = GS.remote(
+    config["gcp_rootdir"] + "missense_vars_with_alphamissense.tsv"
+)
+
 ###############################################################################
 #                               Auxiliary files                               #
 ###############################################################################
@@ -43,6 +49,8 @@ lof_metrics_by_gene_file = GS.remote(config["gcp_rootdir"] + "lof_metrics_by_gen
 mutation_ht = GS.remote(config["gcp_rootdir"] + "mutation_ht.tsv")
 # Pre-calculated SpliceAI scores (hg19)
 spliceai_scores = GS.remote(config["spliceai_scores_path"])
+# Pre-calculated AlphaMissense scores (hg19)
+alphamissense_scores = GS.remote(config["alphamissense_scores_path"])
 
 ###############################################################################
 
@@ -62,6 +70,8 @@ rule all:
         # Whiffin2020 #########################################################
         intronic_by_context_Whiffin2020,
         syn_by_context_Whiffin2020,
+        # AlphaMissense #######################################################
+        missense_vars_with_alphamissense,
 
 
 rule mutation_ht:
@@ -141,8 +151,6 @@ rule all_by_csq_w_AF_AC:
         )
 
 
-# Counts of singletons in all variants grouped by
-# variant class and context (genomes)
 rule all_by_csq_genomes:
     output:
         all_by_csq_genomes,
@@ -480,6 +488,9 @@ rule intronic_by_context_Whiffin2020:
         )
 
 
+# Splicing ####################################################################
+
+
 rule canonical_splice_site_vars:
     input:
         spliceai_scores,
@@ -525,6 +536,63 @@ rule canonical_splice_site_vars:
             "high_DS_AL",
             "high_DS_DG",
             "high_DS_DL",
+        ).aggregate(
+            variant_count=hl.agg.count(),
+            singleton_count=hl.agg.count_where(variants.freq[0].AC == 1),
+        ).export(
+            output[0]
+        )
+
+
+# AlphaMissense ###############################################################
+
+
+rule missense_vars_with_alphamissense:
+    output:
+        missense_vars_with_alphamissense,
+    run:
+        import hail as hl
+        from preprocessing import preprocessing
+
+        variants = preprocessing(
+            config["exomes_ht_path"],
+            config["context_ht_path"],
+            config["mutation_rates_ht_path"],
+            config["coverage_exomes_ht_path"],
+            {"female": config["female_exomes"], "male": config["male_exomes"]},
+        )
+
+        variants = variants.filter(variants.worst_csq == "missense_variant")
+
+        am = hl.import_table(
+            config["alphamissense_scores_path"],
+            find_replace=("chr", ""),
+            types={"Start": hl.tint32, "End": hl.tint32, "AM_SCORE": hl.tfloat64},
+        )
+        am = am.key_by(
+            locus=hl.locus(
+                am["#Chr"],
+                am.Start,
+                "GRCh37",
+            ),
+            alleles=[am.Ref, am.Alt],
+        )
+
+        am = am[variants.key]
+        variants = variants.annotate(
+            AM_CLASS=am.AM_CLASS, high_AM_SCORE=hl.if_else(am.AM_SCORE >= 0.8, 1, 0)
+        )
+
+        variants.group_by(
+            "context",
+            "ref",
+            "alt",
+            "mu",
+            "methylation_level",
+            "worst_csq",
+            "coverage",
+            "AM_CLASS",
+            "high_AM_SCORE",
         ).aggregate(
             variant_count=hl.agg.count(),
             singleton_count=hl.agg.count_where(variants.freq[0].AC == 1),
