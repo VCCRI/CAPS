@@ -9,6 +9,19 @@ require(greta)
 syn <- read_tsv(snakemake@input[["syn_vars"]])
 intron <- read_tsv(snakemake@input[["intron_vars"]])
 
+if (snakemake@params[["group_by_context"]]) {
+  syn %>%
+    group_by(context, ref, alt, methylation_level, mu) %>%
+    summarise(variant_count = sum(variant_count), singleton_count = sum(singleton_count)) -> syn
+  intron %>%
+    group_by(context, ref, alt, methylation_level, mu) %>%
+    summarise(variant_count = sum(variant_count), singleton_count = sum(singleton_count)) -> intron
+}
+
+if ((dim(syn)[1] != 100) || (dim(intron)[1] != 104)) {
+  stop("Input should be grouped by context (100 rows for synonymous, 104 rows for intronic)")
+}
+
 obs <- intron %>%
   rename(s_intron = singleton_count, n_intron = variant_count) %>%
   inner_join(syn, by = "mu") %>%

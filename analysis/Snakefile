@@ -106,13 +106,15 @@ syn_by_context_ppd_Whiffin2020 = "../model/phat_sim_Whiffin2020.tsv"
 
 # General #####################################################################
 # Synonymous variants grouped by context/mutability (exomes)
-syn_by_context = "syn_by_context.tsv"
+syn_by_context_and_coverage = "syn_by_context_and_coverage.tsv"
 # Intronic variants grouped by context/mutability (exomes)
-intronic_by_context = "intronic_by_context.tsv"
+intronic_by_context_and_coverage = "intronic_by_context_and_coverage.tsv"
 # Synonymous variants grouped by context/mutability (genomes)
-syn_by_context_genomes = "syn_by_context_genomes.tsv"
+syn_by_context_and_coverage_genomes = "syn_by_context_and_coverage_genomes.tsv"
 # Intronic variants grouped by context/mutability (genomes)
-intronic_by_context_genomes = "intronic_by_context_genomes.tsv"
+intronic_by_context_and_coverage_genomes = (
+    "intronic_by_context_and_coverage_genomes.tsv"
+)
 # CAPS scores for near-splice variants
 caps_near_acceptor_scores = "near_acceptor_caps.tsv"
 caps_near_acceptor_genomes_scores = "near_acceptor_genomes_caps.tsv"
@@ -236,6 +238,7 @@ syn_constrained_caps_plot = "syn_constrained_caps.pdf"
 syn_constrained_scores2_plot = "syn_constrained_scores2.pdf"
 # Fit of the MAPS model calibrated on synonymous variants
 MAPS_model_fit_on_syn = "MAPS_model_fit_on_syn.pdf"
+MAPS_model_fit_on_syn_genomes = "MAPS_model_fit_on_syn_genomes.pdf"
 # Whiffin2020 #################################################################
 Whiffin2020_uORFs_effects_uAUG_plot = "Whiffin2020_uORFs_effects_uAUG.pdf"
 Whiffin2020_uORFs_effects_stop_plot = "Whiffin2020_uORFs_effects_stop.pdf"
@@ -253,6 +256,7 @@ rule all:
         contexts_by_csq_genomes,
         # Plots ###############################################################
         MAPS_model_fit_on_syn,
+        MAPS_model_fit_on_syn_genomes,
         caps_by_csq_plot,
         all_vars_scores2_by_mutability_band_plot,
         all_vars_maps_by_mutability_band_plot,
@@ -287,7 +291,6 @@ rule process_by_csq_variants:
         Out=by_csq,
     params:
         min_coverage=30,
-        protein_coding=True,
         add_essential_splice_cat=True,
     script:
         filtering
@@ -300,8 +303,6 @@ rule process_by_csq_variants_genomes:
         Out=by_csq_genomes,
     params:
         min_coverage=30,
-        # NOTE: the condition below toggles the "intergenic" category
-        protein_coding=False,
         add_essential_splice_cat=True,
     script:
         filtering
@@ -367,7 +368,7 @@ rule get_near_donor_variants_genomes:
 rule MAPS_model_fit_on_syn:
     input:
         mutation_ht=mutation_ht,
-        calibrate_on=syn_by_context,
+        calibrate_on=syn_by_context_and_coverage,
     params:
         transformation="+",
         legend_title="",
@@ -375,6 +376,21 @@ rule MAPS_model_fit_on_syn:
         text_size=22,
     output:
         plot=MAPS_model_fit_on_syn,
+    script:
+        viz_model
+
+
+rule MAPS_model_fit_on_syn_genomes:
+    input:
+        mutation_ht=mutation_ht,
+        calibrate_on=syn_by_context_and_coverage_genomes,
+    params:
+        transformation="+",
+        legend_title="",
+        colors=colors3,
+        text_size=22,
+    output:
+        plot=MAPS_model_fit_on_syn_genomes,
     script:
         viz_model
 
@@ -387,12 +403,14 @@ if recalibrate_CAPS == True:
 
     rule caps_model:
         input:
-            syn_vars=syn_by_context,
-            intron_vars=intronic_by_context,
+            syn_vars=syn_by_context_and_coverage,
+            intron_vars=intronic_by_context_and_coverage,
         output:
             phat=syn_by_context_p4,
             phat_sim=syn_by_context_ppd,
             theta_sample=theta_sample,
+        params:
+            group_by_context=True,
         resources:
             mem_mb=3072,
         script:
@@ -400,12 +418,14 @@ if recalibrate_CAPS == True:
 
     rule caps_model_genomes:
         input:
-            syn_vars=syn_by_context_genomes,
-            intron_vars=intronic_by_context_genomes,
+            syn_vars=syn_by_context_and_coverage_genomes,
+            intron_vars=intronic_by_context_and_coverage_genomes,
         output:
             phat=syn_by_context_p4_genomes,
             phat_sim=syn_by_context_ppd_genomes,
             theta_sample=theta_sample_genomes,
+        params:
+            group_by_context=True,
         resources:
             mem_mb=3072,
         script:
@@ -419,6 +439,8 @@ if recalibrate_CAPS == True:
             phat=syn_by_context_p4_Whiffin2020,
             phat_sim=syn_by_context_ppd_Whiffin2020,
             theta_sample=theta_sample_Whiffin2020,
+        params:
+            group_by_context=False,
         resources:
             mem_mb=3072,
         script:
@@ -428,11 +450,11 @@ if recalibrate_CAPS == True:
 ###############################################################################
 
 
-rule syn_by_context:
+rule syn_by_context_and_coverage:
     input:
         In=by_csq,
     output:
-        Out=syn_by_context,
+        Out=syn_by_context_and_coverage,
     params:
         variable="worst_csq",
         variable_value="synonymous_variant",
@@ -440,11 +462,11 @@ rule syn_by_context:
         filtering
 
 
-rule syn_by_context_genomes:
+rule syn_by_context_and_coverage_genomes:
     input:
         In=by_csq_genomes,
     output:
-        Out=syn_by_context_genomes,
+        Out=syn_by_context_and_coverage_genomes,
     params:
         variable="worst_csq",
         variable_value="synonymous_variant",
@@ -452,11 +474,11 @@ rule syn_by_context_genomes:
         filtering
 
 
-rule intronic_by_context:
+rule intronic_by_context_and_coverage:
     input:
         In=by_csq,
     output:
-        Out=intronic_by_context,
+        Out=intronic_by_context_and_coverage,
     params:
         variable="worst_csq",
         variable_value="intron_variant",
@@ -464,11 +486,11 @@ rule intronic_by_context:
         filtering
 
 
-rule intronic_by_context_genomes:
+rule intronic_by_context_and_coverage_genomes:
     input:
         In=by_csq_genomes,
     output:
-        Out=intronic_by_context_genomes,
+        Out=intronic_by_context_and_coverage_genomes,
     params:
         variable="worst_csq",
         variable_value="intron_variant",
@@ -699,8 +721,8 @@ rule scores3_by_csq_genomes_plot:
             "Essential splice",
             "Nonsense",
         ],
-        model_labels=["caps_ppd", "caps", "maps"],
-        new_model_labels=["CAPS-PPD", "CAPS", "MAPS"],
+        model_labels=["maps", "caps", "caps_ppd"],
+        new_model_labels=["MAPS", "CAPS", "CAPS-PPD"],
         dodge_width=0.95,
         colors=colors3,
         xlab="",
@@ -1131,7 +1153,7 @@ rule syn_vars_maps_by_mutability_band_plot:
 rule syn_vars_maps_by_mutability_band:
     input:
         variants=syn_w_mutability_bands,
-        calibrate_on=syn_by_context,
+        calibrate_on=syn_by_context_and_coverage,
     params:
         extra="mutability_band",
         transformation="+",
@@ -1158,7 +1180,7 @@ rule syn_vars_caps_by_mutability_band:
 rule maps_near_acceptor_scores:
     input:
         variants=near_acceptor_vars,
-        calibrate_on=syn_by_context,
+        calibrate_on=syn_by_context_and_coverage,
     params:
         extra="splice_distance",
         transformation="+",
@@ -1171,7 +1193,7 @@ rule maps_near_acceptor_scores:
 rule maps_near_acceptor_genomes_scores:
     input:
         variants=near_acceptor_genomes_vars,
-        calibrate_on=syn_by_context_genomes,
+        calibrate_on=syn_by_context_and_coverage_genomes,
     params:
         extra="splice_distance",
         transformation="+",
@@ -1184,7 +1206,7 @@ rule maps_near_acceptor_genomes_scores:
 rule maps_near_donor_scores:
     input:
         variants=near_donor_vars,
-        calibrate_on=syn_by_context,
+        calibrate_on=syn_by_context_and_coverage,
     params:
         extra="splice_distance",
         transformation="+",
@@ -1197,7 +1219,7 @@ rule maps_near_donor_scores:
 rule maps_near_donor_genomes_scores:
     input:
         variants=near_donor_genomes_vars,
-        calibrate_on=syn_by_context_genomes,
+        calibrate_on=syn_by_context_and_coverage_genomes,
     params:
         extra="splice_distance",
         transformation="+",
@@ -1210,7 +1232,7 @@ rule maps_near_donor_genomes_scores:
 rule maps_by_csq_scores:
     input:
         variants=by_csq,
-        calibrate_on=syn_by_context,
+        calibrate_on=syn_by_context_and_coverage,
     params:
         extra="worst_csq",
         transformation="+",
@@ -1223,7 +1245,7 @@ rule maps_by_csq_scores:
 rule maps_by_csq_genomes_scores:
     input:
         variants=by_csq_genomes,
-        calibrate_on=syn_by_context_genomes,
+        calibrate_on=syn_by_context_and_coverage_genomes,
     params:
         extra="worst_csq",
         transformation="+",
@@ -1363,7 +1385,7 @@ rule all_vars_caps_by_mutability_band:
 rule all_vars_maps_by_mutability_band:
     input:
         variants=all_w_mutability_bands,
-        calibrate_on=syn_by_context,
+        calibrate_on=syn_by_context_and_coverage,
     params:
         extra="mutability_band",
         transformation="+",
@@ -1376,7 +1398,7 @@ rule all_vars_maps_by_mutability_band:
 rule all_vars_sqrt_by_mutability_band:
     input:
         variants=all_w_mutability_bands,
-        calibrate_on=syn_by_context,
+        calibrate_on=syn_by_context_and_coverage,
     params:
         extra="mutability_band",
         transformation="sqrt",
@@ -1618,7 +1640,7 @@ rule calculate_caps_by_loeuf_group_syn:
 
 rule calculate_maps_by_loeuf_group_syn:
     input:
-        calibrate_on=syn_by_context,
+        calibrate_on=syn_by_context_and_coverage,
         variants=syn_constrained_joined_groups,
     params:
         extra="loeuf",
