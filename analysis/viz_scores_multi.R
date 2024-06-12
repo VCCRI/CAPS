@@ -21,7 +21,7 @@ if (length(unique(unlist(lapply(dfs, function(df) {
 dfs %>%
   Reduce((function(df1, df2) inner_join(df1, df2, by = "variable_value")), .) %>%
   mutate(variable_value = as.factor(variable_value)) %>%
-  select(variable_value, (starts_with("maps") | starts_with("traps") | starts_with("caps")) & !ends_with("_se") & !ends_with("_sem")) %>%
+  select(variable_value, (starts_with("maps") | starts_with("traps") | starts_with("caps") | starts_with("alphamissense")) & !ends_with("_se") & !ends_with("_sem")) %>%
   melt() %>%
   rowwise() %>%
   mutate(model = unlist(stringr::str_split(variable, "_[lu]conf"))[1], type = stringr::str_extract(variable, "[lu]conf")) %>%
@@ -67,6 +67,11 @@ ggplot(df) +
     y = score,
     color = model
   ) +
+  {
+    if (!is.null(snakemake@params[["with_AlphaMissense"]]) && snakemake@params[["with_AlphaMissense"]]) {
+      facet_grid(ifelse(model == "AlphaMissense", "AlphaMissense", "CAPS/MAPS") ~ ., scales = "free")
+    }
+  } +
   geom_pointrange(
     aes(
       ymin = lconf,

@@ -9,6 +9,23 @@ recalibrate_CAPS = False
 colors2 = ["#999899", "#B11116"]
 colors3 = ["#999899", "#B11116", "#F04B5D"]
 
+# Pairs of contexts (defined by their mutability values) to compare
+# MAPS and CAPS on, based on maximum differences in the residuals from
+# the MAPS model
+mutability_pairs = [
+    # Non-CpGs
+    (3.1245e-09, 7.7544e-09),
+    (6.7244e-09, 9.9720e-09),
+    (1.0799e-09, 1.0244e-09),
+    (9.4166e-10, 2.9242e-09),
+    (2.9409e-09, 8.8520e-09),
+    (2.4639e-09, 4.9426e-09),
+    # CpGs
+    (1.4169e-07, 1.0005e-07),
+    (1.0750e-07, 7.2389e-08),
+]
+mutability_pairs1, mutability_pairs2 = zip(*mutability_pairs)
+
 ###############################################################################
 #                                   Scripts                                   #
 ###############################################################################
@@ -26,6 +43,8 @@ join_groups = "join_groups.R"
 viz_scores_multi = "viz_scores_multi.R"
 annotate_with_mutability_bands = "annotate_with_mutability_bands.R"
 Whiffin2020_uORFs_preprocessing = "Whiffin2020_uORFs_preprocessing.R"
+filter_alphamissense = "filter_alphamissense.R"
+calculate_avg_alphamissense = "calculate_avg_alphamissense.R"
 
 ###############################################################################
 #                                 Input files                                 #
@@ -44,6 +63,10 @@ if config["gcp"] == False:
     # Near-splice variants
     near_splice_vars_unprocessed = "../files/near_splice_vars.tsv"
     near_splice_vars_genomes_unprocessed = "../files/near_splice_vars_genomes.tsv"
+    # Missense variants annotated with some AlphaMissense information
+    missense_vars_with_alphamissense_unprocessed = (
+        "../files/missense_vars_with_alphamissense.tsv"
+    )
     # Whiffin2020
     syn_by_context_Whiffin2020 = "../files/syn_by_context_Whiffin2020.tsv"
     intronic_by_context_Whiffin2020 = "../files/intronic_by_context_Whiffin2020.tsv"
@@ -66,6 +89,10 @@ else:
     near_splice_vars_genomes_unprocessed = GS.remote(
         config["gcp_rootdir"] + "near_splice_vars_genomes.tsv"
     )
+    # Missense variants annotated with some AlphaMissense information
+    missense_vars_with_alphamissense_unprocessed = GS.remote(
+        config["gcp_rootdir"] + "missense_vars_with_alphamissense.tsv"
+    )
     # Whiffin2020
     syn_by_context_Whiffin2020 = GS.remote(
         config["gcp_rootdir"] + "syn_by_context_Whiffin2020.tsv"
@@ -81,6 +108,8 @@ near_acceptor_vars = "near_acceptor_vars.tsv"
 near_acceptor_genomes_vars = "near_acceptor_genomes_vars.tsv"
 near_donor_vars = "near_donor_vars.tsv"
 near_donor_genomes_vars = "near_donor_genomes_vars.tsv"
+
+missense_vars_with_alphamissense = "missense_vars_with_alphamissense.tsv"
 
 Whiffin2020_stop_unprocessed = (
     "uORFs/data_files/stop-removing_all_possible_annotated.txt"
@@ -150,7 +179,6 @@ maps_by_csq_scores = "all_csq_maps.tsv"
 maps_by_csq_genomes_scores = "all_csq_genomes_maps.tsv"
 # Synonymous variants by Top % LOEUF group
 syn_constrained_joined_groups = "syn_constrained_joined_groups.tsv"
-# Synonymous variants by Top % LOEUF group
 syn_constrained_tops_caps_scores = "syn_constrained_caps.tsv"
 syn_constrained_tops_maps_scores = "syn_constrained_maps.tsv"
 # Model #######################################################################
@@ -270,6 +298,11 @@ rule all:
         scores3_by_csq_plot,
         scores3_by_csq_genomes_plot,
         scores2_by_csq_genomes_plot,
+        expand(
+            "CAPSvsMAPS_for_contexts_{mu1}_{mu2}.pdf",
+            mu1=mutability_pairs1,
+            mu2=mutability_pairs2,
+        ),
         syn_constrained_caps_plot,
         syn_constrained_scores2_plot,
         Whiffin2020_uORFs_kozak_uAUG_plot,
@@ -356,6 +389,16 @@ rule get_near_donor_variants_genomes:
         min_coverage=30,
         variable="splice_type",
         variable_value="splice_donor_variant",
+    script:
+        filtering
+
+rule process_missense_vars_with_alphamissense:
+    input:
+        In=missense_vars_with_alphamissense_unprocessed,
+    output:
+        Out=missense_vars_with_alphamissense,
+    params:
+        min_coverage=30,
     script:
         filtering
 
@@ -563,13 +606,13 @@ rule scores2_by_csq_plot:
         model_labels=["maps", "caps"],
         new_model_labels=["MAPS", "CAPS"],
         colors=colors2,
-        aspect_ratio=0.9,
-        text_size=22,
-        xlab_size=20,
+        aspect_ratio=0.5,
+        text_size=16,
+        xlab_size=16,
         point_size=1,
         xlab="",
         ylab="Selection score",
-        xlab_angle=30,
+        xlab_angle=20,
         xlab_hjust=1,
         xlab_vjust=1,
         legend_title="",
@@ -1674,7 +1717,7 @@ rule syn_loeuf_scores2_groups_plot:
             "90%",
             "100%",
         ],
-        aspect_ratio=0.3,
+        aspect_ratio=0.4,
         text_size=15,
         xlab_size=15,
         point_size=0.6,
@@ -2234,3 +2277,95 @@ rule Whiffin2020_uORFs_distanceCDS_plot_uAUG:
         plot=Whiffin2020_uORFs_distanceCDS_uAUG_plot,
     script:
         viz_scores_multi
+
+
+###############################################################################
+#                        CAPS vs MAPS on AlphaMissense                        #
+###############################################################################
+
+for mu1, mu2 in mutability_pairs:
+
+    rule filter_missense_vars_with_alphamissense:
+        name:
+            "filter_missense_vars_with_alphamissense_{mu1}_{mu2}"
+        input:
+            mutation_ht=mutation_ht,
+            variants=missense_vars_with_alphamissense,
+            syn_by_context_and_coverage=syn_by_context_and_coverage,
+        output:
+            Out="CAPSvsMAPS_for_contexts_{mu1}_{mu2}.tsv",
+        params:
+            mu1=mu1,
+            mu2=mu2,
+            variant_level=True,
+            only_deleterious=True,
+        script:
+            filter_alphamissense
+
+    rule missense_vars_with_alphamissense_contexts_caps:
+        name:
+            "missense_vars_with_alphamissense_contexts_caps_{mu1}_{mu2}"
+        input:
+            variants="CAPSvsMAPS_for_contexts_{mu1}_{mu2}.tsv",
+            exp_variants=syn_by_context_p4,
+        params:
+            phat_method="Var",
+            confint_method="CAPS",
+            variable="full_context",
+        output:
+            scores="missense_vars_with_alphamissense_caps_contexts_{mu1}_{mu2}.tsv",
+        script:
+            calculate_caps
+
+    rule missense_vars_with_alphamissense_contexts_maps:
+        name:
+            "missense_vars_with_alphamissense_contexts_maps_{mu1}_{mu2}"
+        input:
+            variants="CAPSvsMAPS_for_contexts_{mu1}_{mu2}.tsv",
+            calibrate_on=syn_by_context_and_coverage,
+        params:
+            extra="full_context",
+            transformation="+",
+        output:
+            scores="missense_vars_with_alphamissense_maps_contexts_{mu1}_{mu2}.tsv",
+        script:
+            calculate_maps
+
+    rule missense_vars_with_alphamissense_contexts_avg_alphamissense:
+        name:
+            "missense_vars_with_alphamissense_contexts_avg_alphamissense_{mu1}_{mu2}"
+        input:
+            variants="CAPSvsMAPS_for_contexts_{mu1}_{mu2}.tsv",
+        output:
+            scores="missense_vars_with_alphamissense_contexts_{mu1}_{mu2}.tsv",
+        script:
+            calculate_avg_alphamissense
+
+    rule missense_vars_with_alphamissense_contexts_scores2_plot:
+        name:
+            "missense_vars_with_alphamissense_contexts_scores2_plot_{mu1}_{mu2}"
+        input:
+            scores=[
+                "missense_vars_with_alphamissense_caps_contexts_{mu1}_{mu2}.tsv",
+                "missense_vars_with_alphamissense_maps_contexts_{mu1}_{mu2}.tsv",
+                "missense_vars_with_alphamissense_contexts_{mu1}_{mu2}.tsv",
+            ],
+        params:
+            model_labels=["maps", "caps", "alphamissense"],
+            new_model_labels=["MAPS", "CAPS", "AlphaMissense"],
+            with_AlphaMissense = True,
+            colors=colors2 + ["black"],
+            aspect_ratio=0.5,
+            text_size=20,
+            xlab_size=20,
+            point_size=1,
+            legend_title="",
+            xlab="Context",
+            ylab="Score",
+            xlab_angle=20,
+            xlab_hjust=0.5,
+            xlab_vjust=0.5,
+        output:
+            plot="CAPSvsMAPS_for_contexts_{mu1}_{mu2}.pdf",
+        script:
+            viz_scores_multi

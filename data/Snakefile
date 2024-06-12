@@ -74,6 +74,7 @@ rule all:
         missense_vars_with_alphamissense,
 
 
+
 rule mutation_ht:
     output:
         mutation_ht,
@@ -579,11 +580,11 @@ rule missense_vars_with_alphamissense:
         )
 
         am = am[variants.key]
-        variants = variants.annotate(
-            AM_CLASS=am.AM_CLASS, high_AM_SCORE=hl.if_else(am.AM_SCORE >= 0.8, 1, 0)
-        )
+        variants = variants.annotate(AM_CLASS=am.AM_CLASS, AM_SCORE=am.AM_SCORE)
 
-        variants.group_by(
+        variants = variants.annotate(AC=variants.freq[0].AC)
+
+        variants.select(
             "context",
             "ref",
             "alt",
@@ -591,11 +592,7 @@ rule missense_vars_with_alphamissense:
             "methylation_level",
             "worst_csq",
             "coverage",
+            "AC",
             "AM_CLASS",
-            "high_AM_SCORE",
-        ).aggregate(
-            variant_count=hl.agg.count(),
-            singleton_count=hl.agg.count_where(variants.freq[0].AC == 1),
-        ).export(
-            output[0]
-        )
+            "AM_SCORE",
+        ).export(output[0])

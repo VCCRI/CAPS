@@ -94,6 +94,8 @@ get_CAPS_ppd <- function(dat, phat_sim, bPPD = FALSE) {
 exp_vars <- read.table(snakemake@input[["exp_variants"]], header = TRUE, sep = "\t")
 
 vars <- read.table(snakemake@input[["variants"]], header = TRUE, sep = "\t")
+# Fixes error when reading Ts in the input as TRUE values
+if (all(vars$alt == TRUE)) vars$alt = "T"
 
 if (!("phat" %in% colnames(exp_vars)) & snakemake@params[["phat_method"]] != "PPD") {
   exp_vars <- mutate(exp_vars, phat = singleton_count / variant_count)
