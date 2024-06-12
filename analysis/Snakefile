@@ -300,6 +300,7 @@ rule all:
         scores2_by_csq_genomes_plot,
         expand(
             "CAPSvsMAPS_for_contexts_{mu1}_{mu2}.pdf",
+            zip,
             mu1=mutability_pairs1,
             mu2=mutability_pairs2,
         ),
@@ -2295,8 +2296,8 @@ for mu1, mu2 in mutability_pairs:
         output:
             Out="CAPSvsMAPS_for_contexts_{mu1}_{mu2}.tsv",
         params:
-            mu1=mu1,
-            mu2=mu2,
+            mu1="{mu1}",
+            mu2="{mu2}",
             variant_level=True,
             only_deleterious=True,
         script:
